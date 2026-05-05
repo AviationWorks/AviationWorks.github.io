@@ -77,9 +77,7 @@ function makeBarChart(canvasId, rows, col_keys, title, stacked) {
 function makeSparkline(canvasId, rows) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
-  // Mark Monday (0), Thursday (3), Saturday (5) with tick labels
   const MARKED = new Set([0, 3, 5]);
-  const DAY_LABELS = {0: 'Mon', 3: 'Thu', 5: 'Sat'};
   const labels = rows.map(r => {
     if (MARKED.has(r.weekday)) {
       const parts = r.date.replace('/', '-').split('-');
@@ -89,13 +87,13 @@ function makeSparkline(canvasId, rows) {
   });
   const pointRadii  = rows.map(r => MARKED.has(r.weekday) ? 3 : 0);
   const pointColors = rows.map(r => r.weekday === 5 ? '#c75b00' :
-                                    r.weekday === 0 ? '#2563a8' :
-                                    r.weekday === 3 ? '#15803d' : '#2563a8');
+                                    r.weekday === 0 ? '#2563a8' : '#15803d');
   new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
+        label: 'OT Rows',
         data: rows.map(r => r.count),
         borderColor: '#4a90d9',
         backgroundColor: 'rgba(74,144,217,.15)',
@@ -274,37 +272,26 @@ function initIndex(D) {
     return sel;
   }
 
-  // ── Card filters ──
+  // ── Card + bar filters (shared) ──
   const months   = D.monthly_cards.months;
   const lastMon  = months[months.length - 1] || '';
-  const monSel   = populate('card-month-sel',    months,                      lastMon);
-  const cBaseSel = populate('card-base-sel',     D.monthly_cards.bases,       'All');
-  const cAcSel   = populate('card-aircraft-sel', D.monthly_cards.aircraft,    'All');
-  const cSeatSel = populate('card-seat-sel',     D.monthly_cards.seats,       'All');
-  const cRegSel  = populate('card-region-sel',   D.monthly_cards.regions,     'All');
+  const monSel   = populate('card-month-sel',    months,                   lastMon);
+  const cBaseSel = populate('card-base-sel',     D.monthly_cards.bases,    'All');
+  const cAcSel   = populate('card-aircraft-sel', D.monthly_cards.aircraft, 'All');
+  const cSeatSel = populate('card-seat-sel',     D.monthly_cards.seats,    'All');
+  const cRegSel  = populate('card-region-sel',   D.monthly_cards.regions,  'All');
 
-  function refreshCards() {
-    updateCards(D, monSel.value, cBaseSel.value,
-                cAcSel.value, cSeatSel.value, cRegSel.value);
+  function refresh() {
+    const base = cBaseSel.value, ac = cAcSel.value,
+          seat = cSeatSel.value, reg = cRegSel.value;
+    updateCards(D, monSel.value, base, ac, seat, reg);
+    makeRecentBar(D, base, ac, seat, reg);
   }
+
   [monSel, cBaseSel, cAcSel, cSeatSel, cRegSel].forEach(s => {
-    if (s) s.addEventListener('change', refreshCards);
+    if (s) s.addEventListener('change', refresh);
   });
-  refreshCards();
-
-  // ── Recent bar filters ──
-  const bBaseSel = populate('bar-base-sel',     ['All', ...D.recent_by_base.bases],    'All');
-  const bAcSel   = populate('bar-aircraft-sel', ['All', ...D.recent_by_base.aircraft], 'All');
-  const bSeatSel = populate('bar-seat-sel',     ['All', ...D.recent_by_base.seats],    'All');
-  const bRegSel  = populate('bar-region-sel',   ['All', ...D.recent_by_base.regions],  'All');
-
-  function refreshBar() {
-    makeRecentBar(D, bBaseSel.value, bAcSel.value, bSeatSel.value, bRegSel.value);
-  }
-  [bBaseSel, bAcSel, bSeatSel, bRegSel].forEach(s => {
-    if (s) s.addEventListener('change', refreshBar);
-  });
-  refreshBar();
+  refresh();
 }
 
 function initDaily(D) {

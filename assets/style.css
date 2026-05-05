@@ -185,7 +185,7 @@ main {
   margin-top: 2px;
 }
 .card.orange { border-top-color: var(--orange); }
-.card.green  { border-top-color: var(--green);  }
+.card.green  { border-top-color: #34d399; }   /* lighter mint green for PM/Premium */
 
 /* ── Chart containers ── */
 .chart-box {
@@ -317,6 +317,17 @@ footer a { color: var(--amber); }
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 3px;
+}
+.sparkline-narrative {
+  font-size: .8rem;
+  line-height: 1.7;
+  color: var(--gray4);
+  max-width: 760px;
+  margin: -10px 0 20px;
+  padding: 10px 14px;
+  border-left: 3px solid rgba(199,91,0,.35);
+  background: rgba(199,91,0,.04);
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 @media (max-width: 600px) {

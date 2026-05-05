@@ -20,12 +20,12 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-05 20:44 UTC
+        Page generated: 2026-05-05 22:36 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
 <a href="daily.html" class="active">📊 Daily OT</a>
-<a href="pm.html">💲 PM Sequences</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> PM Sequences</a>
 <a href="rf.html">🛡️ RF Sequences</a>
 </nav>
   </div>
@@ -76,15 +76,31 @@
 
 </main>
 <footer>
-  APA Open Time Statistics &bull; Data collected from MyOT &bull;
+  Open Time Flight Data Analysis &bull; Data collected from MyOT &bull;
   Not affiliated with APA or American Airlines &bull;
   <a href="index.html">Home</a>
 </footer>
+<!-- Load data FIRST, then charting library, then our code, then init -->
+<script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/charts.js"></script>
-<script src="data/site_data.js"></script>
 <script>
-  initDaily(MYOT_DATA);
+(function() {
+  if (typeof MYOT_DATA === 'undefined') {
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
+    console.error('site_data.js did not load — MYOT_DATA is undefined.');
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js did not load from CDN.');
+    return;
+  }
+  try {
+    initDaily(MYOT_DATA);
+  } catch(e) {
+    console.error('Init error:', e);
+  }
+})();
 </script>
 </body>
 </html>

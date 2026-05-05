@@ -20,12 +20,12 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-05 20:44 UTC
+        Page generated: 2026-05-05 22:36 UTC
       </div>
     </div>
     <nav><a href="index.html" class="active">🏠 Home</a>
 <a href="daily.html">📊 Daily OT</a>
-<a href="pm.html">💲 PM Sequences</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> PM Sequences</a>
 <a href="rf.html">🛡️ RF Sequences</a>
 </nav>
   </div>
@@ -66,12 +66,19 @@
   <div class="card orange">
     <div class="card-label">RF Sequences</div>
     <div class="card-value" id="card-rf">—</div>
-    <div class="card-sub">Reserve Flip</div>
+    <div class="card-sub">Reserve Usage</div>
   </div>
   <div class="card green">
     <div class="card-label">PM Sequences</div>
     <div class="card-value" id="card-pm">—</div>
     <div class="card-sub">Premium Pay</div>
+  </div>
+</div>
+
+<h3 class="section-title">Monthly OT Activity</h3>
+<div class="chart-box">
+  <div style="height:280px">
+    <canvas id="recent-bar"></canvas>
   </div>
 </div>
 
@@ -84,31 +91,6 @@
     <span style="color:#2563a8">&#9679; Mon</span>&nbsp;&nbsp;
     <span style="color:#15803d">&#9679; Thu</span>&nbsp;&nbsp;
     <span style="color:#c75b00">&#9679; Sat</span>
-  </div>
-</div>
-
-<h3 class="section-title">Last 30 Days of OT Activity</h3>
-<div class="chart-box">
-  <div class="filter-bar" style="margin-bottom:10px">
-    <div class="filter-group">
-      <label>Base</label>
-      <select id="bar-base-sel" class="ctrl-select"></select>
-    </div>
-    <div class="filter-group">
-      <label>Aircraft</label>
-      <select id="bar-aircraft-sel" class="ctrl-select"></select>
-    </div>
-    <div class="filter-group">
-      <label>Seat</label>
-      <select id="bar-seat-sel" class="ctrl-select"></select>
-    </div>
-    <div class="filter-group">
-      <label>Region</label>
-      <select id="bar-region-sel" class="ctrl-select"></select>
-    </div>
-  </div>
-  <div style="height:280px">
-    <canvas id="recent-bar"></canvas>
   </div>
 </div>
 
@@ -159,20 +141,36 @@
   Charts update automatically each day after the nightly scrape runs.
   Navigate using the menu above to explore <a href="daily.html">Daily OT counts</a>,
   <a href="pm.html">PM (Premium Pay) sequences</a>, and
-  <a href="rf.html">RF (Reserve Flip) sequences</a>.
+  <a href="rf.html">RF (Reserve) sequences</a>.
 </p>
 
 </main>
 <footer>
-  APA Open Time Statistics &bull; Data collected from MyOT &bull;
+  Open Time Flight Data Analysis &bull; Data collected from MyOT &bull;
   Not affiliated with APA or American Airlines &bull;
   <a href="index.html">Home</a>
 </footer>
+<!-- Load data FIRST, then charting library, then our code, then init -->
+<script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="assets/charts.js"></script>
-<script src="data/site_data.js"></script>
 <script>
-  initIndex(MYOT_DATA);
+(function() {
+  if (typeof MYOT_DATA === 'undefined') {
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
+    console.error('site_data.js did not load — MYOT_DATA is undefined.');
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js did not load from CDN.');
+    return;
+  }
+  try {
+    initIndex(MYOT_DATA);
+  } catch(e) {
+    console.error('Init error:', e);
+  }
+})();
 </script>
 </body>
 </html>

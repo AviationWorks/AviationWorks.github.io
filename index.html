@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home | APA OT Stats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header id="site-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-logo">✈</div>
+      <div class="header-titles">
+        <h1>APA Open Time Statistics</h1>
+        <p>American Airlines Pilot Association &mdash; Open Time Flight Data Analysis</p>
+      </div>
+      <div class="header-meta">
+        Last scrape: <strong>2026-05-01</strong><br>
+        Page generated: 2026-05-05 19:54 UTC
+      </div>
+    </div>
+    <nav><a href="index.html" class="active">🏠 Home</a>
+<a href="daily.html">📊 Daily OT</a>
+<a href="pm.html">✈️  PM Sequences</a>
+<a href="rf.html">🔄 RF Sequences</a>
+</nav>
+  </div>
+</header>
+<main>
+
+<h2 class="page-title">Open Time Data Dashboard</h2>
+
+<div class="card-row">
+  <div class="card">
+    <div class="card-label">Total OT Rows</div>
+    <div class="card-value">235,828</div>
+    <div class="card-sub">All bases &amp; aircraft</div>
+  </div>
+  <div class="card orange">
+    <div class="card-label">RF Sequences</div>
+    <div class="card-value">27,209</div>
+    <div class="card-sub">Deduplicated</div>
+  </div>
+  <div class="card green">
+    <div class="card-label">PM Sequences</div>
+    <div class="card-value">3,783</div>
+    <div class="card-sub">Deduplicated</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Scrape Days</div>
+    <div class="card-value">3</div>
+    <div class="card-sub">2026-04-25 – 2026-05-01</div>
+  </div>
+</div>
+
+<h3 class="section-title">Recent OT Activity (60 days, all bases)</h3>
+<div class="chart-box">
+  <div id="sparkline-wrap" style="height:80px">
+    <canvas id="sparkline-canvas"></canvas>
+  </div>
+</div>
+
+<h3 class="section-title">Last 30 Days by Base</h3>
+<div class="chart-box" style="height:300px">
+  <canvas id="recent-bar"></canvas>
+</div>
+
+<h3 class="section-title">Database Summary</h3>
+<div class="data-table-wrap">
+  <table>
+    <thead><tr>
+      <th style="text-align:left">Database</th>
+      <th>Total Rows</th><th>RF Count</th><th>PM Count</th>
+      <th>First Scrape</th><th>Last Scrape</th>
+    </tr></thead>
+    <tbody><tr>
+          <td>320_CA</td>
+          <td>58,258</td>
+          <td>6,514</td>
+          <td>799</td>
+          <td>2026-04-25</td>
+          <td>2026-05-01</td>
+        </tr><tr>
+          <td>320_FO</td>
+          <td>63,235</td>
+          <td>7,380</td>
+          <td>829</td>
+          <td>2026-04-25</td>
+          <td>2026-05-01</td>
+        </tr><tr>
+          <td>737_CA</td>
+          <td>54,451</td>
+          <td>6,308</td>
+          <td>1,160</td>
+          <td>2026-04-25</td>
+          <td>2026-05-01</td>
+        </tr><tr>
+          <td>737_FO</td>
+          <td>59,884</td>
+          <td>7,007</td>
+          <td>995</td>
+          <td>2026-04-25</td>
+          <td>2026-05-01</td>
+        </tr></tbody>
+  </table>
+</div>
+
+<h3 class="section-title">About This Site</h3>
+<p style="font-size:.85rem;line-height:1.7;color:#3a4560;max-width:700px">
+  This site displays statistics derived from APA MyOT Open Time data scraped
+  daily. All data is aggregated — no individual pilot information is shown.
+  Charts update automatically each day after the nightly scrape runs.
+  Navigate using the menu above to explore <a href="daily.html">Daily OT counts</a>,
+  <a href="pm.html">PM sequences</a>, and <a href="rf.html">RF sequences</a>.
+</p>
+
+</main>
+<footer>
+  APA Open Time Statistics &bull; Data collected from MyOT &bull;
+  Not affiliated with APA or American Airlines &bull;
+  <a href="index.html">Home</a>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/charts.js"></script>
+<script src="data/site_data.js"></script>
+<script>
+  initIndex(MYOT_DATA);
+</script>
+</body>
+</html>

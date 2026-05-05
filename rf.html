@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RF Sequences | APA OT Stats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header id="site-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-logo">✈</div>
+      <div class="header-titles">
+        <h1>APA Open Time Statistics</h1>
+        <p>American Airlines Pilot Association &mdash; Open Time Flight Data Analysis</p>
+      </div>
+      <div class="header-meta">
+        Last scrape: <strong>2026-05-01</strong><br>
+        Page generated: 2026-05-05 19:54 UTC
+      </div>
+    </div>
+    <nav><a href="index.html">🏠 Home</a>
+<a href="daily.html">📊 Daily OT</a>
+<a href="pm.html">✈️  PM Sequences</a>
+<a href="rf.html" class="active">🔄 RF Sequences</a>
+</nav>
+  </div>
+</header>
+<main>
+
+<h2 class="page-title">RF (Reserve Flip) Sequence Analysis</h2>
+<p class="note">RF sequences are deduplicated by sequence_number + dep_local. Pay values are in hours.</p>
+
+<div class="tab-container">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="rf-tab-all">All Bases</button>
+    <button class="tab-btn" data-tab="rf-tab-737">737 CA Detail</button>
+    <button class="tab-btn" data-tab="rf-tab-pay">Pay Analysis</button>
+  </div>
+
+  <div class="tab-panel active" id="rf-tab-all">
+    <h3 class="section-title">All Bases RF Sequences</h3>
+    
+<div class="chart-box" style="height:280px">
+  <h3>All Bases RF – Monthly Totals</h3>
+  <canvas id="rf-all-monthly-bar"></canvas>
+</div>
+<div class="chart-box" style="height:280px">
+  <h3>All Bases RF – Daily Trend</h3>
+  <canvas id="rf-all-line"></canvas>
+</div>
+<div class="data-table-wrap">
+  <table>
+    <thead id="rf-all-thead"></thead>
+    <tbody id="rf-all-tbody"></tbody>
+  </table>
+</div>
+
+  </div>
+
+  <div class="tab-panel" id="rf-tab-737">
+    <h3 class="section-title">737 CA RF – by Bid Status</h3>
+    <div class="chart-box" style="height:280px">
+      <canvas id="rf-737-monthly-bar"></canvas>
+    </div>
+    <div class="chart-box" style="height:280px">
+      <canvas id="rf-737-line"></canvas>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="rf-tab-pay">
+    <h3 class="section-title">737 CA RF Pay (hours/month)</h3>
+    <div class="chart-box" style="height:300px">
+      <canvas id="rf-pay-bar"></canvas>
+    </div>
+  </div>
+</div>
+
+</main>
+<footer>
+  APA Open Time Statistics &bull; Data collected from MyOT &bull;
+  Not affiliated with APA or American Airlines &bull;
+  <a href="index.html">Home</a>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/charts.js"></script>
+<script src="data/site_data.js"></script>
+<script>
+  initRF(MYOT_DATA);
+</script>
+</body>
+</html>

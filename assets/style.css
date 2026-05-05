@@ -1,0 +1,292 @@
+
+/* MyOT Open Time Statistics — stylesheet */
+:root {
+  --navy:   #1a3a5c;
+  --blue:   #2563a8;
+  --lblue:  #4a90d9;
+  --sky:    #d6e8f7;
+  --orange: #c75b00;
+  --amber:  #f59e0b;
+  --green:  #15803d;
+  --gray0:  #f4f6f9;
+  --gray1:  #e4e8ef;
+  --gray2:  #c0c8d8;
+  --gray3:  #7a8aab;
+  --gray4:  #3a4560;
+  --text:   #1c2333;
+  --white:  #ffffff;
+  --font-sans: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'Source Code Pro', 'Consolas', monospace;
+  --radius: 4px;
+  --shadow: 0 1px 3px rgba(0,0,0,.12);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--gray0);
+  line-height: 1.5;
+}
+
+/* ── Header / Nav ── */
+#site-header {
+  background: var(--navy);
+  color: var(--white);
+  border-bottom: 3px solid var(--orange);
+}
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 10px 20px 0;
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 10px;
+}
+.header-logo {
+  font-size: 2rem;
+  line-height: 1;
+}
+.header-titles h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.header-titles p {
+  font-size: .8rem;
+  color: var(--sky);
+  margin-top: 2px;
+}
+.header-meta {
+  margin-left: auto;
+  text-align: right;
+  font-size: .75rem;
+  color: var(--sky);
+  line-height: 1.6;
+}
+nav {
+  display: flex;
+  gap: 0;
+  border-top: 1px solid rgba(255,255,255,.15);
+}
+nav a {
+  display: block;
+  padding: 9px 18px;
+  color: var(--sky);
+  text-decoration: none;
+  font-size: .85rem;
+  font-weight: 600;
+  border-right: 1px solid rgba(255,255,255,.1);
+  transition: background .15s, color .15s;
+}
+nav a:hover, nav a.active {
+  background: var(--blue);
+  color: var(--white);
+}
+nav a.active {
+  border-bottom: 3px solid var(--amber);
+  margin-bottom: -3px;
+}
+
+/* ── Page layout ── */
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+.page-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--navy);
+  border-bottom: 2px solid var(--blue);
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+}
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin: 24px 0 10px;
+  padding-left: 8px;
+  border-left: 4px solid var(--blue);
+}
+
+/* ── Summary cards ── */
+.card-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.card {
+  background: var(--white);
+  border: 1px solid var(--gray1);
+  border-top: 3px solid var(--blue);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+}
+.card-label {
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--gray3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.card-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.1;
+  margin-top: 4px;
+}
+.card-sub {
+  font-size: .75rem;
+  color: var(--gray3);
+  margin-top: 2px;
+}
+.card.orange { border-top-color: var(--orange); }
+.card.green  { border-top-color: var(--green);  }
+
+/* ── Chart containers ── */
+.chart-box {
+  background: var(--white);
+  border: 1px solid var(--gray1);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px 10px;
+  margin-bottom: 20px;
+}
+.chart-box h3 {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 10px;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: .75rem;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--gray4);
+}
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Tab switcher ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--gray1);
+}
+.tab-btn {
+  padding: 7px 18px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-family: var(--font-sans);
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--gray3);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.tab-btn:hover { color: var(--navy); }
+.tab-btn.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Data table ── */
+.data-table-wrap { overflow-x: auto; margin-bottom: 16px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .8rem;
+}
+th {
+  background: var(--navy);
+  color: var(--white);
+  padding: 7px 10px;
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+}
+th:first-child { text-align: left; }
+td {
+  padding: 5px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--gray1);
+  white-space: nowrap;
+}
+td:first-child { text-align: left; font-family: var(--font-mono); font-size: .78rem; }
+tr:nth-child(even) td { background: var(--gray0); }
+tr.month-total td {
+  background: var(--sky);
+  font-weight: 700;
+  border-top: 1px solid var(--gray2);
+}
+tr.grand-total td {
+  background: var(--navy);
+  color: var(--white);
+  font-weight: 700;
+}
+td.outlier { background: var(--amber) !important; font-weight: 700; }
+
+/* ── Sparkline ── */
+#sparkline-wrap {
+  height: 60px;
+  margin: 8px 0;
+}
+
+/* ── Footer ── */
+footer {
+  background: var(--navy);
+  color: var(--sky);
+  text-align: center;
+  padding: 14px;
+  font-size: .75rem;
+  margin-top: 32px;
+}
+footer a { color: var(--amber); }
+
+/* ── Utility ── */
+.note {
+  font-size: .78rem;
+  color: var(--gray3);
+  margin-top: -10px;
+  margin-bottom: 14px;
+}
+.tag-outlier {
+  display: inline-block;
+  background: var(--amber);
+  color: var(--text);
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+@media (max-width: 600px) {
+  .card-row { grid-template-columns: repeat(2, 1fr); }
+  nav a { padding: 9px 10px; font-size: .78rem; }
+}

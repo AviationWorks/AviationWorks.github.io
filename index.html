@@ -15,18 +15,18 @@
     <div class="header-top">
       <div class="header-logo">✈</div>
       <div class="header-titles">
-        <h1>APA Open Time Statistics</h1>
-        <p>American Airlines Pilot Association &mdash; Open Time Flight Data Analysis</p>
+        <h1>Open Time</h1>
+        <p>Flight Data Analysis</p>
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-05 19:54 UTC
+        Page generated: 2026-05-05 20:44 UTC
       </div>
     </div>
     <nav><a href="index.html" class="active">🏠 Home</a>
 <a href="daily.html">📊 Daily OT</a>
-<a href="pm.html">✈️  PM Sequences</a>
-<a href="rf.html">🔄 RF Sequences</a>
+<a href="pm.html">💲 PM Sequences</a>
+<a href="rf.html">🛡️ RF Sequences</a>
 </nav>
   </div>
 </header>
@@ -34,39 +34,82 @@
 
 <h2 class="page-title">Open Time Data Dashboard</h2>
 
+<div class="filter-bar">
+  <div class="filter-group">
+    <label>Month</label>
+    <select id="card-month-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Base</label>
+    <select id="card-base-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Aircraft</label>
+    <select id="card-aircraft-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Seat</label>
+    <select id="card-seat-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Region</label>
+    <select id="card-region-sel" class="ctrl-select"></select>
+  </div>
+</div>
+
 <div class="card-row">
   <div class="card">
     <div class="card-label">Total OT Rows</div>
-    <div class="card-value">235,828</div>
-    <div class="card-sub">All bases &amp; aircraft</div>
+    <div class="card-value" id="card-total">—</div>
+    <div class="card-sub">All codes</div>
   </div>
   <div class="card orange">
     <div class="card-label">RF Sequences</div>
-    <div class="card-value">27,209</div>
-    <div class="card-sub">Deduplicated</div>
+    <div class="card-value" id="card-rf">—</div>
+    <div class="card-sub">Reserve Flip</div>
   </div>
   <div class="card green">
     <div class="card-label">PM Sequences</div>
-    <div class="card-value">3,783</div>
-    <div class="card-sub">Deduplicated</div>
-  </div>
-  <div class="card">
-    <div class="card-label">Scrape Days</div>
-    <div class="card-value">3</div>
-    <div class="card-sub">2026-04-25 – 2026-05-01</div>
+    <div class="card-value" id="card-pm">—</div>
+    <div class="card-sub">Premium Pay</div>
   </div>
 </div>
 
 <h3 class="section-title">Recent OT Activity (60 days, all bases)</h3>
 <div class="chart-box">
-  <div id="sparkline-wrap" style="height:80px">
+  <div style="height:90px">
     <canvas id="sparkline-canvas"></canvas>
+  </div>
+  <div class="note" style="margin-top:4px">
+    <span style="color:#2563a8">&#9679; Mon</span>&nbsp;&nbsp;
+    <span style="color:#15803d">&#9679; Thu</span>&nbsp;&nbsp;
+    <span style="color:#c75b00">&#9679; Sat</span>
   </div>
 </div>
 
-<h3 class="section-title">Last 30 Days by Base</h3>
-<div class="chart-box" style="height:300px">
-  <canvas id="recent-bar"></canvas>
+<h3 class="section-title">Last 30 Days of OT Activity</h3>
+<div class="chart-box">
+  <div class="filter-bar" style="margin-bottom:10px">
+    <div class="filter-group">
+      <label>Base</label>
+      <select id="bar-base-sel" class="ctrl-select"></select>
+    </div>
+    <div class="filter-group">
+      <label>Aircraft</label>
+      <select id="bar-aircraft-sel" class="ctrl-select"></select>
+    </div>
+    <div class="filter-group">
+      <label>Seat</label>
+      <select id="bar-seat-sel" class="ctrl-select"></select>
+    </div>
+    <div class="filter-group">
+      <label>Region</label>
+      <select id="bar-region-sel" class="ctrl-select"></select>
+    </div>
+  </div>
+  <div style="height:280px">
+    <canvas id="recent-bar"></canvas>
+  </div>
 </div>
 
 <h3 class="section-title">Database Summary</h3>
@@ -115,7 +158,8 @@
   daily. All data is aggregated — no individual pilot information is shown.
   Charts update automatically each day after the nightly scrape runs.
   Navigate using the menu above to explore <a href="daily.html">Daily OT counts</a>,
-  <a href="pm.html">PM sequences</a>, and <a href="rf.html">RF sequences</a>.
+  <a href="pm.html">PM (Premium Pay) sequences</a>, and
+  <a href="rf.html">RF (Reserve Flip) sequences</a>.
 </p>
 
 </main>

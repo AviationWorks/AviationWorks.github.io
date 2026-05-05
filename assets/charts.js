@@ -77,16 +77,31 @@ function makeBarChart(canvasId, rows, col_keys, title, stacked) {
 function makeSparkline(canvasId, rows) {
   const ctx = document.getElementById(canvasId);
   if (!ctx) return;
+  // Mark Monday (0), Thursday (3), Saturday (5) with tick labels
+  const MARKED = new Set([0, 3, 5]);
+  const DAY_LABELS = {0: 'Mon', 3: 'Thu', 5: 'Sat'};
+  const labels = rows.map(r => {
+    if (MARKED.has(r.weekday)) {
+      const parts = r.date.replace('/', '-').split('-');
+      return parts[1] + '/' + parts[2];
+    }
+    return '';
+  });
+  const pointRadii  = rows.map(r => MARKED.has(r.weekday) ? 3 : 0);
+  const pointColors = rows.map(r => r.weekday === 5 ? '#c75b00' :
+                                    r.weekday === 0 ? '#2563a8' :
+                                    r.weekday === 3 ? '#15803d' : '#2563a8');
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels: rows.map(r => r.date),
+      labels,
       datasets: [{
         data: rows.map(r => r.count),
         borderColor: '#4a90d9',
         backgroundColor: 'rgba(74,144,217,.15)',
         borderWidth: 1.5,
-        pointRadius: 0,
+        pointRadius: pointRadii,
+        pointBackgroundColor: pointColors,
         tension: 0.4,
         fill: true,
       }]
@@ -94,10 +109,97 @@ function makeSparkline(canvasId, rows) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { enabled: false } },
-      scales: { x: { display: false }, y: { display: false } }
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => rows[items[0].dataIndex].date.replace('/', '-'),
+            label:  (item) => 'OT rows: ' + item.raw.toLocaleString()
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            font: { size: 9 },
+            maxRotation: 0,
+            autoSkip: false,
+            color: (ctx2) => {
+              const lbl = labels[ctx2.index] || '';
+              if (!lbl) return 'transparent';
+              const wd = rows[ctx2.index] ? rows[ctx2.index].weekday : -1;
+              return wd === 5 ? '#c75b00' : wd === 0 ? '#2563a8' : '#15803d';
+            }
+          },
+          grid: { display: false }
+        },
+        y: { display: false }
+      }
     }
   });
+}
+
+/* ── Recent bar chart with 4 filter dropdowns ── */
+let recentBarChart = null;
+function makeRecentBar(D, base, aircraft, seat, region) {
+  const ctx = document.getElementById('recent-bar');
+  if (!ctx) return;
+  const dates = D.recent_by_base.dates;
+  // Aggregate detail rows by date matching all active filters
+  const counts = {};
+  dates.forEach(d => counts[d] = 0);
+  D.recent_by_base.detail.forEach(r => {
+    if (!counts.hasOwnProperty(r.date)) return;
+    if (base     !== 'All' && r.base     !== base)     return;
+    if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+    if (seat     !== 'All' && r.seat     !== seat)     return;
+    if (region   !== 'All' && r.region   !== region)   return;
+    counts[r.date] += r.count;
+  });
+  const labels = dates.map(d => {
+    const p = d.replace('/', '-').split('-');
+    return p[1] + '/' + p[2];
+  });
+  const data = dates.map(d => counts[d] || 0);
+  if (recentBarChart) recentBarChart.destroy();
+  recentBarChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'OT Rows',
+        data,
+        backgroundColor: 'rgba(37,99,168,.7)',
+        borderColor: '#2563a8',
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+        y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+/* ── Monthly summary cards with 4 filter dropdowns ── */
+function updateCards(D, month, base, aircraft, seat, region) {
+  const detail = (D.monthly_cards.detail[month] || []);
+  let total = 0, rf = 0, pm = 0;
+  detail.forEach(r => {
+    if (base     !== 'All' && r.base     !== base)     return;
+    if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+    if (seat     !== 'All' && r.seat     !== seat)     return;
+    if (region   !== 'All' && r.region   !== region)   return;
+    total += r.total; rf += r.rf; pm += r.pm;
+  });
+  document.getElementById('card-total').textContent = total.toLocaleString();
+  document.getElementById('card-rf').textContent    = rf.toLocaleString();
+  document.getElementById('card-pm').textContent    = pm.toLocaleString();
 }
 
 /* ── Tab logic ── */
@@ -156,12 +258,53 @@ function buildTableHeader(theadId, col_keys, rowLabel, showTotal) {
 
 /* ── Page init helpers ── */
 function initIndex(D) {
-  // Summary cards are static HTML; just draw sparkline
+  // ── Sparkline ──
   makeSparkline('sparkline-canvas', D.sparkline);
 
-  // Recent daily activity bar (last 30 days all bases)
-  const recent = D.daily.all_bases.rows.slice(-30);
-  makeBarChart('recent-bar', recent, D.daily.all_bases.col_keys, '', true);
+  // ── Helper: populate a select from an array ──
+  function populate(id, options, defaultVal) {
+    const sel = document.getElementById(id);
+    if (!sel) return sel;
+    options.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+    sel.value = defaultVal;
+    return sel;
+  }
+
+  // ── Card filters ──
+  const months   = D.monthly_cards.months;
+  const lastMon  = months[months.length - 1] || '';
+  const monSel   = populate('card-month-sel',    months,                      lastMon);
+  const cBaseSel = populate('card-base-sel',     D.monthly_cards.bases,       'All');
+  const cAcSel   = populate('card-aircraft-sel', D.monthly_cards.aircraft,    'All');
+  const cSeatSel = populate('card-seat-sel',     D.monthly_cards.seats,       'All');
+  const cRegSel  = populate('card-region-sel',   D.monthly_cards.regions,     'All');
+
+  function refreshCards() {
+    updateCards(D, monSel.value, cBaseSel.value,
+                cAcSel.value, cSeatSel.value, cRegSel.value);
+  }
+  [monSel, cBaseSel, cAcSel, cSeatSel, cRegSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshCards);
+  });
+  refreshCards();
+
+  // ── Recent bar filters ──
+  const bBaseSel = populate('bar-base-sel',     ['All', ...D.recent_by_base.bases],    'All');
+  const bAcSel   = populate('bar-aircraft-sel', ['All', ...D.recent_by_base.aircraft], 'All');
+  const bSeatSel = populate('bar-seat-sel',     ['All', ...D.recent_by_base.seats],    'All');
+  const bRegSel  = populate('bar-region-sel',   ['All', ...D.recent_by_base.regions],  'All');
+
+  function refreshBar() {
+    makeRecentBar(D, bBaseSel.value, bAcSel.value, bSeatSel.value, bRegSel.value);
+  }
+  [bBaseSel, bAcSel, bSeatSel, bRegSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshBar);
+  });
+  refreshBar();
 }
 
 function initDaily(D) {

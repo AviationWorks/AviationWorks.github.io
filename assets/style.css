@@ -117,6 +117,39 @@ main {
   border-left: 4px solid var(--blue);
 }
 
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.filter-group label {
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--gray3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.ctrl-select {
+  font-family: var(--font-sans);
+  font-size: .82rem;
+  padding: 5px 10px;
+  border: 1px solid var(--gray2);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--text);
+  cursor: pointer;
+  min-width: 80px;
+}
+.ctrl-select:focus { outline: 2px solid var(--blue); }
+
 /* ── Summary cards ── */
 .card-row {
   display: grid;

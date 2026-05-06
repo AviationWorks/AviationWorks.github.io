@@ -143,7 +143,8 @@ function makeRecentBar(D, base, aircraft, seat, region) {
   const ctx = document.getElementById('recent-bar');
   if (!ctx) return;
   const dates = D.recent_by_base.dates;
-  // Aggregate detail rows by date matching all active filters
+
+  // ── Aggregate 30-day display data ──
   const counts = {};
   dates.forEach(d => counts[d] = 0);
   D.recent_by_base.detail.forEach(r => {
@@ -154,28 +155,81 @@ function makeRecentBar(D, base, aircraft, seat, region) {
     if (region   !== 'All' && r.region   !== region)   return;
     counts[r.date] += r.count;
   });
+
+  // ── Compute std dev threshold from full history ──
+  const allDayCounts = {};
+  D.recent_by_base.all_detail.forEach(r => {
+    if (base     !== 'All' && r.base     !== base)     return;
+    if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+    if (seat     !== 'All' && r.seat     !== seat)     return;
+    if (region   !== 'All' && r.region   !== region)   return;
+    allDayCounts[r.date] = (allDayCounts[r.date] || 0) + r.count;
+  });
+  const allVals = Object.values(allDayCounts);
+  let stdDevLine = null;
+  if (allVals.length >= 2) {
+    const mean = allVals.reduce((a, b) => a + b, 0) / allVals.length;
+    const variance = allVals.reduce((s, v) => s + (v - mean) ** 2, 0) / allVals.length;
+    stdDevLine = Math.round((mean + 1.5 * Math.sqrt(variance)) * 10) / 10;
+  }
+
   const labels = dates.map(d => {
     const p = d.replace('/', '-').split('-');
     return p[1] + '/' + p[2];
   });
   const data = dates.map(d => counts[d] || 0);
+
   if (recentBarChart) recentBarChart.destroy();
+  const datasets = [
+    {
+      label: 'OT Rows',
+      data,
+      backgroundColor: data.map(v => stdDevLine !== null && v > stdDevLine
+        ? 'rgba(199,91,0,.8)' : 'rgba(37,99,168,.7)'),
+      borderColor: data.map(v => stdDevLine !== null && v > stdDevLine
+        ? '#c75b00' : '#2563a8'),
+      borderWidth: 1,
+      order: 2,
+    }
+  ];
+  if (stdDevLine !== null) {
+    datasets.push({
+      label: '1.5σ threshold (' + stdDevLine + ')',
+      data: dates.map(() => stdDevLine),
+      type: 'line',
+      borderColor: 'rgba(180,83,9,.7)',
+      borderWidth: 1.5,
+      borderDash: [6, 4],
+      pointRadius: 0,
+      fill: false,
+      order: 1,
+    });
+  }
+
   recentBarChart = new Chart(ctx, {
     type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'OT Rows',
-        data,
-        backgroundColor: 'rgba(37,99,168,.7)',
-        borderColor: '#2563a8',
-        borderWidth: 1,
-      }]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          display: stdDevLine !== null,
+          position: 'bottom',
+          labels: { boxWidth: 14, font: { size: 10 } }
+        },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              if (stdDevLine === null) return;
+              const v = items[0].raw;
+              return v > stdDevLine
+                ? ['Above threshold (+' + (v - stdDevLine).toFixed(0) + ' rows)']
+                : [];
+            }
+          }
+        }
+      },
       scales: {
         x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
         y: { beginAtZero: true, ticks: { font: { size: 10 } } }

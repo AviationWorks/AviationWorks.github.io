@@ -21,7 +21,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-06 17:05 UTC
+        Page generated: 2026-05-06 19:19 UTC
       </div>
     </div>
     <nav><a href="index.html" class="active">🏠 Home</a>
@@ -34,6 +34,14 @@
 <main>
 
 <h2 class="page-title">Open Time Data Dashboard</h2>
+
+<p style="font-size:.82rem;color:var(--gray3);margin:4px 0 16px">
+  Open Time (OT) tracks all changes made to sequences available in the open time pool —
+  additions, removals, and modifications. Daily row counts reflect how actively the
+  scheduling operation is managing open time across bid groups on any given day.
+  High activity can indicate operational disruptions, heavy re-crewing, or period-end
+  schedule adjustments.
+</p>
 
 <div class="filter-bar">
   <div class="filter-group">
@@ -77,6 +85,7 @@
 </div>
 
 <h3 class="section-title">Monthly OT Activity</h3>
+<p class="note">Daily OT row count for the selected month and filters. Orange bars exceed the 1.5&sigma; threshold — computed from all historical days in the filtered dataset — indicating unusually high scheduling activity. The dashed line adjusts whenever you change a filter.</p>
 <div class="chart-box">
   <div style="height:280px">
     <canvas id="recent-bar"></canvas>
@@ -84,6 +93,7 @@
 </div>
 
 <h3 class="section-title">Recent OT Activity (60 days, all bases)</h3>
+<p class="note">60-day rolling view of total daily OT rows across all bases — unfiltered, showing the broad trend. Day markers help identify weekly patterns in scheduling activity.</p>
 <div class="chart-box">
   <div style="height:90px">
     <canvas id="sparkline-canvas"></canvas>

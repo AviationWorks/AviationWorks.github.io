@@ -655,20 +655,140 @@ function initPM(D) {
   // Don't call refreshSeniority() here — the tab is hidden and Chart.js
   // can't measure a canvas with display:none. It fires on first tab click instead.
 
-  // ── Pay Analysis tab (unchanged) ──
-  if (D.pm.pay_737_CA && D.pm.pay_737_CA.col_keys.length) {
-    makeBarChart('pm-pay-bar', D.pm.pay_737_CA.rows,
-                 D.pm.pay_737_CA.col_keys, 'Monthly PM Pay Hours – 737 CA', false);
+  // ── Pay Analysis tab ──
+  const payMonSel = populate('pay-month-sel',    P.months,   lastMon);
+  const payBasSel = populate('pay-base-sel',     P.bases,    'All');
+  const payAcSel  = populate('pay-aircraft-sel', P.aircraft, 'All');
+  const payStSel  = populate('pay-seat-sel',     P.seats,    'All');
+  const payRgSel  = populate('pay-region-sel',   P.regions,  'All');
+
+  const minsToHHMM = m => {
+    const h = Math.floor(Math.abs(m)/60), mm = Math.abs(m)%60;
+    return (m < 0 ? '-' : '') + h + ':' + String(mm).padStart(2,'0');
+  };
+
+  // Delta table — shows all months, filtered by Base/Aircraft/Seat/Region only
+  function refreshDeltaTable() {
+    const base = payBasSel.value, ac = payAcSel.value,
+          seat = payStSel.value,  region = payRgSel.value;
+    const months = P.months;
+    const minsByMonth = {};
+    months.forEach(mo => { minsByMonth[mo] = 0; });
+    P.pay_detail.forEach(r => {
+      if (!minsByMonth.hasOwnProperty(r.month))       return;
+      if (base   !== 'All' && r.base     !== base)     return;
+      if (ac     !== 'All' && r.aircraft !== ac)       return;
+      if (seat   !== 'All' && r.seat     !== seat)     return;
+      if (region !== 'All' && r.region   !== region)   return;
+      minsByMonth[r.month] += r.pay_mins;
+    });
+
+    const wrap = document.getElementById('pm-pay-delta-wrap');
+    if (!wrap || !months.length) return;
+    let html = `<table style="font-size:.8rem;border-collapse:collapse;min-width:480px">
+      <thead><tr>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:left">Month</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Total Hours</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Change (HH:MM)</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Change (%)</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:center">Trend</th>
+      </tr></thead><tbody>`;
+    months.forEach((mo, i) => {
+      const cur  = minsByMonth[mo];
+      const prev = i > 0 ? minsByMonth[months[i-1]] : null;
+      const diffMins = prev !== null ? cur - prev : null;
+      const diffPct  = prev ? ((cur - prev) / prev * 100) : null;
+      const hrs  = Math.round(cur / 60 * 10) / 10;
+      const bg   = i % 2 === 1 ? 'background:var(--gray0)' : '';
+      let deltaHHMM = '—', deltaPct = '—', arrow = '—', deltaColor = 'inherit';
+      if (diffMins !== null) {
+        deltaHHMM  = (diffMins >= 0 ? '+' : '') + minsToHHMM(diffMins);
+        deltaPct   = (diffPct  >= 0 ? '+' : '') + diffPct.toFixed(1) + '%';
+        deltaColor = diffMins >= 0 ? '#15803d' : '#b91c1c';
+        arrow      = diffMins > 0 ? '&#9650;' : diffMins < 0 ? '&#9660;' : '&#9644;';
+      }
+      html += `<tr style="${bg}">
+        <td style="padding:5px 12px;font-family:var(--font-mono)">${mo}</td>
+        <td style="padding:5px 12px;text-align:right;font-family:var(--font-mono)">${hrs}</td>
+        <td style="padding:5px 12px;text-align:right;font-family:var(--font-mono);color:${deltaColor}">${deltaHHMM}</td>
+        <td style="padding:5px 12px;text-align:right;color:${deltaColor};font-weight:600">${deltaPct}</td>
+        <td style="padding:5px 12px;text-align:center;color:${deltaColor};font-size:1rem">${arrow}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
   }
 
-  // ── Wire tabs — call initTabs last so all functions are defined ──
+  // Bid group chart — filtered by all 5 selectors including Month
+  let payFilteredChart = null;
+  function refreshPayFiltered() {
+    const month  = payMonSel.value, base = payBasSel.value,
+          ac     = payAcSel.value,  seat = payStSel.value,
+          region = payRgSel.value;
+    const bidMap = {};
+    P.pay_detail.forEach(r => {
+      if (r.month !== month)                         return;
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      const key = [r.base, r.aircraft, r.seat, r.region].join('/');
+      bidMap[key] = (bidMap[key] || 0) + r.pay_mins;
+    });
+    const keys = Object.keys(bidMap).sort((a,b) => bidMap[b]-bidMap[a]);
+    const data = keys.map(k => Math.round(bidMap[k] / 60 * 10) / 10);
+    if (payFilteredChart) { payFilteredChart.destroy(); payFilteredChart = null; }
+    const ctx = document.getElementById('pm-pay-filtered-bar');
+    if (ctx) {
+      payFilteredChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: keys,
+          datasets: [{
+            label: 'PM Pay (hrs)',
+            data,
+            backgroundColor: 'rgba(37,99,168,.7)',
+            borderColor: '#2563a8',
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (item) => item.raw + ' hrs' } }
+          },
+          scales: {
+            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { beginAtZero: true,
+                 title: { display: true, text: 'Hours',
+                          font: { size: 10 }, color: '#7a8aab' },
+                 ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  }
+
+  // All 5 filters trigger both; Month only triggers chart (table ignores it)
+  [payBasSel, payAcSel, payStSel, payRgSel].forEach(s => {
+    if (s) s.addEventListener('change', () => { refreshDeltaTable(); refreshPayFiltered(); });
+  });
+  if (payMonSel) payMonSel.addEventListener('change', refreshPayFiltered);
+
+  // ── Wire tabs ──
   let senRendered = false;
+  let payRendered = false;
   initTabs('.tab-container', function(tabId) {
     if (tabId === 'pm-tab-seniority' && !senRendered) {
-      senRendered = true;
-      refreshSeniority();
+      senRendered = true; refreshSeniority();
     } else if (tabId === 'pm-tab-seniority') {
       refreshSeniority();
+    }
+    if (tabId === 'pm-tab-pay' && !payRendered) {
+      payRendered = true; refreshDeltaTable(); refreshPayFiltered();
+    } else if (tabId === 'pm-tab-pay') {
+      refreshPayFiltered();
     }
   });
 }

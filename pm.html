@@ -21,7 +21,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-06 01:32 UTC
+        Page generated: 2026-05-06 17:05 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
@@ -33,20 +33,23 @@
 </header>
 <main>
 
-<h2 class="page-title">💲 PM (Premium) Sequence Analysis</h2>
-<p class="note">PM sequences are deduplicated by sequence_number + dep_local. Pay values are in hours.</p>
+<h2 class="page-title">PM Sequences</h2>
 
 <div class="tab-container">
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="pm-tab-analysis">PM Analysis</button>
-    <button class="tab-btn" data-tab="pm-tab-seniority">Seniority Analysis</button>
-    <button class="tab-btn" data-tab="pm-tab-pay">Pay Analysis</button>
+    <button class="tab-btn active" data-tab="pm-tab-analysis">Daily PM Volume</button>
+    <button class="tab-btn" data-tab="pm-tab-seniority">PM Seniority</button>
+    <button class="tab-btn" data-tab="pm-tab-pay">Monthly Change in PM</button>
   </div>
 
-  <!-- ── PM Analysis ── -->
+  <!-- ── Daily PM Volume ── -->
   <div class="tab-panel active" id="pm-tab-analysis">
 
-    <div class="filter-bar" style="margin-top:14px">
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>When &amp; how much</strong> — daily PM sequence counts over the selected month, showing which days premium is being offered and at what volume.
+    </p>
+
+    <div class="filter-bar" style="margin-top:0">
       <div class="filter-group">
         <label>Month</label>
         <select id="pm-month-sel" class="ctrl-select"></select>
@@ -88,6 +91,7 @@
     </div>
 
     <h3 class="section-title">Monthly PM Activity</h3>
+    <p class="note">Shows the number of PM sequences for each day of the selected month.</p>
     <div class="chart-box">
       <div style="height:260px">
         <canvas id="pm-monthly-bar"></canvas>
@@ -95,6 +99,7 @@
     </div>
 
     <h3 class="section-title">Recent PM Activity (60 days, all bases)</h3>
+    <p class="note">60-day rolling view of total daily PM sequences across all bases — unfiltered, showing the broad trend.</p>
     <div class="chart-box">
       <div style="height:90px">
         <canvas id="pm-sparkline"></canvas>
@@ -108,10 +113,14 @@
 
   </div><!-- /pm-tab-analysis -->
 
-  <!-- ── Seniority Analysis ── -->
+  <!-- ── PM Seniority ── -->
   <div class="tab-panel" id="pm-tab-seniority">
 
-    <div class="filter-bar" style="margin-top:14px">
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>Who &amp; how much</strong> — which seniority numbers are receiving premium sequences in the selected month, ranked by the number of PM sequences in the graph below or the total flight time earned in the table at the bottom.
+    </p>
+
+    <div class="filter-bar" style="margin-top:0">
       <div class="filter-group">
         <label>Month</label>
         <select id="sen-month-sel" class="ctrl-select"></select>
@@ -134,16 +143,16 @@
       </div>
     </div>
 
-    <p class="note" style="margin-top:8px">
-      Sorted by total flight time descending. Pilots flying in multiple bases appear on separate rows.
-    </p>
-
-    <div class="chart-box" style="margin-top:12px">
+    <h3 class="section-title" style="margin-top:16px">PM Sequences by Seniority Number</h3>
+    <p class="note">Number of PM sequences per seniority number, plotted high-to-low. Hover for details.</p>
+    <div class="chart-box" style="margin-top:8px">
       <div style="height:260px">
         <canvas id="sen-chart"></canvas>
       </div>
     </div>
 
+    <h3 class="section-title">Flight Time Earned by Seniority Number</h3>
+    <p class="note">Total premium flight time (HH:MM) per seniority number for the selected filters, sorted highest to lowest. Seniority numbers flying in multiple bases appear on separate rows.</p>
     <div class="data-table-wrap">
       <table>
         <thead><tr>
@@ -162,20 +171,55 @@
 
   </div><!-- /pm-tab-seniority -->
 
-  <!-- ── Pay Analysis ── -->
+  <!-- ── Monthly Change in PM ── -->
   <div class="tab-panel" id="pm-tab-pay">
-    <h3 class="section-title">737 CA PM Pay (hours/month)</h3>
-    <div class="chart-box" style="height:300px">
-      <canvas id="pm-pay-bar"></canvas>
+
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>Where &amp; how much</strong> — total PM hours by month across all bases, and how it is distributed across bid groups for a selected month.
+    </p>
+
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group">
+        <label>Month</label>
+        <select id="pay-month-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Base</label>
+        <select id="pay-base-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Aircraft</label>
+        <select id="pay-aircraft-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Seat</label>
+        <select id="pay-seat-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Region</label>
+        <select id="pay-region-sel" class="ctrl-select"></select>
+      </div>
     </div>
+
+    <h3 class="section-title" style="margin-top:18px">Month-over-Month PM</h3>
+    <p class="note">Total PM hours per month with change from prior month. Base/Aircraft/Seat/Region filters apply. Green = increase, red = decrease.</p>
+    <div id="pm-pay-delta-wrap" style="overflow-x:auto;margin-bottom:24px"></div>
+
+    <h3 class="section-title">Pay Distribution by Bid Group</h3>
+    <p class="note">PM hours broken down by bid group for the selected month and filters.</p>
+    <div class="chart-box" style="margin-top:8px">
+      <div style="height:260px">
+        <canvas id="pm-pay-filtered-bar"></canvas>
+      </div>
+    </div>
+
   </div>
 
 </div>
 
 </main>
 <footer>
-  Open Time Flight Data Analysis &bull; Data collected from MyOT &bull;
-  Not affiliated with APA or American Airlines &bull;
+  Open Time Flight Data Analysis &bull;
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->

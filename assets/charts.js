@@ -551,11 +551,13 @@ function initPM(D) {
       senMap[k].pm   += r.pm_count;
       senMap[k].mins += r.pay_mins;
     });
-    const senNums = Object.keys(senMap).map(Number).sort((a, b) => b - a);
-    const chartPts = senNums.map(n => {
-      const s = senMap[String(n)];
+    // Sort keys numerically descending (high seniority# left), keep as strings
+    // to avoid Number(key) -> NaN round-trip bug on non-numeric seniority values
+    const senKeys = Object.keys(senMap).sort((a, b) => Number(b) - Number(a));
+    const chartPts = senKeys.map(k => {
+      const s = senMap[k];
       return {
-        seniority: n,
+        seniority: k,
         hours: Math.round(s.mins / 60 * 10) / 10,
         pm:    s.pm,
         hhmm:  Math.floor(s.mins/60) + ':' + String(s.mins % 60).padStart(2,'0'),
@@ -572,8 +574,8 @@ function initPM(D) {
             data: {
               labels: chartPts.map(d => d.seniority),
               datasets: [{
-                label: 'Flight Time (hrs)',
-                data:  chartPts.map(d => d.hours),
+                label: 'PM Sequences',
+                data:  chartPts.map(d => d.pm),
                 borderColor: '#34d399',
                 backgroundColor: 'rgba(52,211,153,.12)',
                 borderWidth: 1.5,
@@ -591,8 +593,8 @@ function initPM(D) {
                 tooltip: {
                   callbacks: {
                     title: (items) => 'Seniority #' + chartPts[items[0].dataIndex].seniority,
-                    afterTitle: (items) => 'PM Sequences: ' + chartPts[items[0].dataIndex].pm,
-                    label: (item) => 'Flight Time: ' + chartPts[item.dataIndex].hhmm,
+                    afterTitle: (items) => 'Flight Time: ' + chartPts[items[0].dataIndex].hhmm,
+                    label: (item) => 'PM Sequences: ' + item.raw,
                   }
                 }
               },
@@ -603,10 +605,10 @@ function initPM(D) {
                   ticks: { font: { size: 9 }, maxTicksLimit: 20 }
                 },
                 y: {
-                  title: { display: true, text: 'Flight Time (hours)',
+                  title: { display: true, text: 'PM Sequences',
                            font: { size: 10 }, color: '#7a8aab' },
                   beginAtZero: true,
-                  ticks: { font: { size: 10 } }
+                  ticks: { font: { size: 10 }, stepSize: 1 }
                 }
               }
             }

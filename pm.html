@@ -20,7 +20,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-05 22:36 UTC
+        Page generated: 2026-05-06 00:04 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
@@ -32,52 +32,143 @@
 </header>
 <main>
 
-<h2 class="page-title">PM (Personal Minimum) Sequence Analysis</h2>
+<h2 class="page-title">💲 PM (Premium) Sequence Analysis</h2>
 <p class="note">PM sequences are deduplicated by sequence_number + dep_local. Pay values are in hours.</p>
 
 <div class="tab-container">
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="pm-tab-all">All Bases</button>
-    <button class="tab-btn" data-tab="pm-tab-737">737 CA Detail</button>
+    <button class="tab-btn active" data-tab="pm-tab-analysis">PM Analysis</button>
+    <button class="tab-btn" data-tab="pm-tab-seniority">Seniority Analysis</button>
     <button class="tab-btn" data-tab="pm-tab-pay">Pay Analysis</button>
   </div>
 
-  <div class="tab-panel active" id="pm-tab-all">
-    <h3 class="section-title">All Bases PM Sequences</h3>
-    
-<div class="chart-box" style="height:280px">
-  <h3>All Bases PM – Monthly Totals</h3>
-  <canvas id="pm-all-monthly-bar"></canvas>
-</div>
-<div class="chart-box" style="height:280px">
-  <h3>All Bases PM – Daily Trend</h3>
-  <canvas id="pm-all-line"></canvas>
-</div>
-<div class="data-table-wrap">
-  <table>
-    <thead id="pm-all-thead"></thead>
-    <tbody id="pm-all-tbody"></tbody>
-  </table>
-</div>
+  <!-- ── PM Analysis ── -->
+  <div class="tab-panel active" id="pm-tab-analysis">
 
-  </div>
-
-  <div class="tab-panel" id="pm-tab-737">
-    <h3 class="section-title">737 CA PM – by Bid Status</h3>
-    <div class="chart-box" style="height:280px">
-      <canvas id="pm-737-monthly-bar"></canvas>
+    <div class="filter-bar" style="margin-top:14px">
+      <div class="filter-group">
+        <label>Month</label>
+        <select id="pm-month-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Base</label>
+        <select id="pm-base-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Aircraft</label>
+        <select id="pm-aircraft-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Seat</label>
+        <select id="pm-seat-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Region</label>
+        <select id="pm-region-sel" class="ctrl-select"></select>
+      </div>
     </div>
-    <div class="chart-box" style="height:280px">
-      <canvas id="pm-737-line"></canvas>
-    </div>
-  </div>
 
+    <div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+      <div class="card green">
+        <div class="card-label">PM Sequences</div>
+        <div class="card-value" id="pm-card-total">—</div>
+        <div class="card-sub">Premium Pay</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total OT Rows</div>
+        <div class="card-value" id="pm-card-ot">—</div>
+        <div class="card-sub">All codes</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">RF Sequences</div>
+        <div class="card-value" id="pm-card-rf">—</div>
+        <div class="card-sub">Reserve Usage</div>
+      </div>
+    </div>
+
+    <h3 class="section-title">Monthly PM Activity</h3>
+    <div class="chart-box">
+      <div style="height:260px">
+        <canvas id="pm-monthly-bar"></canvas>
+      </div>
+    </div>
+
+    <h3 class="section-title">Recent PM Activity (60 days, all bases)</h3>
+    <div class="chart-box">
+      <div style="height:90px">
+        <canvas id="pm-sparkline"></canvas>
+      </div>
+      <div class="note" style="margin-top:4px">
+        <span style="color:#2563a8">&#9679; Mon</span>&nbsp;&nbsp;
+        <span style="color:#15803d">&#9679; Thu</span>&nbsp;&nbsp;
+        <span style="color:#c75b00">&#9679; Sat</span>
+      </div>
+    </div>
+
+  </div><!-- /pm-tab-analysis -->
+
+  <!-- ── Seniority Analysis ── -->
+  <div class="tab-panel" id="pm-tab-seniority">
+
+    <div class="filter-bar" style="margin-top:14px">
+      <div class="filter-group">
+        <label>Month</label>
+        <select id="sen-month-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Base</label>
+        <select id="sen-base-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Aircraft</label>
+        <select id="sen-aircraft-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Seat</label>
+        <select id="sen-seat-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Region</label>
+        <select id="sen-region-sel" class="ctrl-select"></select>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:8px">
+      Sorted by total flight time descending. Pilots flying in multiple bases appear on separate rows.
+    </p>
+
+    <div class="chart-box" style="margin-top:12px">
+      <div style="height:260px">
+        <canvas id="sen-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="data-table-wrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Seniority</th>
+          <th style="text-align:left">Base</th>
+          <th style="text-align:left">Aircraft</th>
+          <th style="text-align:left">Seat</th>
+          <th style="text-align:left">Region</th>
+          <th>PM Sequences</th>
+          <th>Flight Time</th>
+        </tr></thead>
+        <tbody id="sen-tbody"></tbody>
+        <tfoot id="sen-tfoot"></tfoot>
+      </table>
+    </div>
+
+  </div><!-- /pm-tab-seniority -->
+
+  <!-- ── Pay Analysis ── -->
   <div class="tab-panel" id="pm-tab-pay">
     <h3 class="section-title">737 CA PM Pay (hours/month)</h3>
     <div class="chart-box" style="height:300px">
       <canvas id="pm-pay-bar"></canvas>
     </div>
   </div>
+
 </div>
 
 </main>

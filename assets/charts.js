@@ -187,21 +187,33 @@ function makeRecentBar(D, base, aircraft, seat, region) {
 /* ── Monthly summary cards with 4 filter dropdowns ── */
 function updateCards(D, month, base, aircraft, seat, region) {
   const detail = (D.monthly_cards.detail[month] || []);
-  let total = 0, rf = 0, pm = 0;
+  let total = 0, rf = 0;
   detail.forEach(r => {
     if (base     !== 'All' && r.base     !== base)     return;
     if (aircraft !== 'All' && r.aircraft !== aircraft) return;
     if (seat     !== 'All' && r.seat     !== seat)     return;
     if (region   !== 'All' && r.region   !== region)   return;
-    total += r.total; rf += r.rf; pm += r.pm;
+    total += r.total; rf += r.rf;
   });
+  // PM: use deduplicated count from pm_page.daily
+  let pm = 0;
+  if (D.pm_page) {
+    D.pm_page.daily.forEach(r => {
+      if (r.month    !== month)                      return;
+      if (base     !== 'All' && r.base     !== base)     return;
+      if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+      if (seat     !== 'All' && r.seat     !== seat)     return;
+      if (region   !== 'All' && r.region   !== region)   return;
+      pm += r.count;
+    });
+  }
   document.getElementById('card-total').textContent = total.toLocaleString();
   document.getElementById('card-rf').textContent    = rf.toLocaleString();
   document.getElementById('card-pm').textContent    = pm.toLocaleString();
 }
 
 /* ── Tab logic ── */
-function initTabs(containerSel) {
+function initTabs(containerSel, onSwitch) {
   document.querySelectorAll(containerSel + ' .tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const bar   = btn.closest('.tab-bar');
@@ -210,6 +222,7 @@ function initTabs(containerSel) {
       btn.classList.add('active');
       wrap.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       wrap.querySelector('#' + btn.dataset.tab).classList.add('active');
+      if (onSwitch) onSwitch(btn.dataset.tab);
     });
   });
 }
@@ -343,25 +356,317 @@ function initRF(D) {
 }
 
 function initPM(D) {
-  initTabs('.tab-container');
+  const P = D.pm_page;
+  if (!P) return;
 
-  makeBarChart('pm-all-monthly-bar', D.pm.all_bases.monthly,
-               D.pm.all_bases.col_keys, 'Monthly PM Sequences – All Bases', true);
-  makeLineChart('pm-all-line', D.pm.all_bases.rows,
-                D.pm.all_bases.col_keys, '');
-
-  if (D.pm['737_CA'] && D.pm['737_CA'].col_keys.length) {
-    makeBarChart('pm-737-monthly-bar', D.pm['737_CA'].monthly,
-                 D.pm['737_CA'].col_keys, 'Monthly PM – 737 CA by Bid Status', true);
-    makeLineChart('pm-737-line', D.pm['737_CA'].rows,
-                  D.pm['737_CA'].col_keys, '');
+  // ── Shared populate helper ──
+  function populate(id, options, defaultVal) {
+    const sel = document.getElementById(id);
+    if (!sel) return sel;
+    options.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+    sel.value = defaultVal;
+    return sel;
   }
 
+  // ── Sparkline (60-day all-bases, no filter) ──
+  (function() {
+    const ctx = document.getElementById('pm-sparkline');
+    if (!ctx) return;
+    const rows = P.sparkline;
+    const MARKED = new Set([0, 3, 5]);
+    const labels = rows.map(r => {
+      if (MARKED.has(r.weekday)) {
+        const p = r.date.replace('/', '-').split('-');
+        return p[1] + '/' + p[2];
+      }
+      return '';
+    });
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: rows.map(r => r.count),
+          borderColor: '#34d399',
+          backgroundColor: 'rgba(52,211,153,.15)',
+          borderWidth: 1.5,
+          pointRadius: rows.map(r => MARKED.has(r.weekday) ? 3 : 0),
+          pointBackgroundColor: rows.map(r =>
+            r.weekday === 5 ? '#c75b00' : r.weekday === 0 ? '#2563a8' : '#15803d'),
+          tension: 0.4, fill: true,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => rows[items[0].dataIndex].date.replace('/', '-'),
+              label:  (item) => 'PM sequences: ' + item.raw.toLocaleString()
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              font: { size: 9 }, maxRotation: 0, autoSkip: false,
+              color: (c) => {
+                const lbl = labels[c.index] || '';
+                if (!lbl) return 'transparent';
+                const wd = rows[c.index] ? rows[c.index].weekday : -1;
+                return wd === 5 ? '#c75b00' : wd === 0 ? '#2563a8' : '#15803d';
+              }
+            },
+            grid: { display: false }
+          },
+          y: { display: false }
+        }
+      }
+    });
+  })();
+
+  // ── PM Analysis tab filters ──
+  const lastMon  = P.months[P.months.length - 1] || '';
+  const pmMonSel = populate('pm-month-sel',    P.months,    lastMon);
+  const pmBasSel = populate('pm-base-sel',     P.bases,     'All');
+  const pmAcSel  = populate('pm-aircraft-sel', P.aircraft,  'All');
+  const pmStSel  = populate('pm-seat-sel',     P.seats,     'All');
+  const pmRgSel  = populate('pm-region-sel',   P.regions,   'All');
+
+  let pmBarChart = null;
+
+  function pmFilter(r, month, base, ac, seat, region) {
+    if (r.month    !== month)                    return false;
+    if (base   !== 'All' && r.base     !== base)   return false;
+    if (ac     !== 'All' && r.aircraft !== ac)     return false;
+    if (seat   !== 'All' && r.seat     !== seat)   return false;
+    if (region !== 'All' && r.region   !== region) return false;
+    return true;
+  }
+
+  function refreshPMAnalysis() {
+    const month = pmMonSel.value, base = pmBasSel.value,
+          ac    = pmAcSel.value,  seat = pmStSel.value,
+          region = pmRgSel.value;
+
+    // ── Cards: filter monthly_cards for Total OT + RF, pm_page.daily for PM ──
+    let pmTotal = 0, otTotal = 0, rfTotal = 0;
+    P.daily.forEach(r => {
+      if (!pmFilter(r, month, base, ac, seat, region)) return;
+      pmTotal += r.count;
+    });
+    // OT + RF from monthly_cards detail
+    const mcDetail = (D.monthly_cards.detail[month] || []);
+    mcDetail.forEach(r => {
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      otTotal += r.total; rfTotal += r.rf;
+    });
+    document.getElementById('pm-card-total').textContent = pmTotal.toLocaleString();
+    document.getElementById('pm-card-ot').textContent    = otTotal.toLocaleString();
+    document.getElementById('pm-card-rf').textContent    = rfTotal.toLocaleString();
+
+    // ── Bar chart: daily PM counts for the selected month ──
+    const dayMap = {};
+    P.daily.forEach(r => {
+      if (!pmFilter(r, month, base, ac, seat, region)) return;
+      dayMap[r.day] = (dayMap[r.day] || 0) + r.count;
+    });
+    const days  = Object.keys(dayMap).sort();
+    const barLabels = days.map(d => {
+      const p = d.replace('/', '-').split('-');
+      return p[1] + '/' + p[2];
+    });
+    const barData = days.map(d => dayMap[d]);
+
+    if (pmBarChart) pmBarChart.destroy();
+    const barCtx = document.getElementById('pm-monthly-bar');
+    if (barCtx) {
+      pmBarChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: barLabels,
+          datasets: [{
+            label: 'PM Sequences',
+            data: barData,
+            backgroundColor: 'rgba(52,211,153,.7)',
+            borderColor: '#15803d',
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  }
+
+  [pmMonSel, pmBasSel, pmAcSel, pmStSel, pmRgSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshPMAnalysis);
+  });
+  refreshPMAnalysis();
+
+  // ── Seniority Analysis tab ──
+  const senMonSel = populate('sen-month-sel',    P.months,   lastMon);
+  const senBasSel = populate('sen-base-sel',     P.bases,    'All');
+  const senAcSel  = populate('sen-aircraft-sel', P.aircraft, 'All');
+  const senStSel  = populate('sen-seat-sel',     P.seats,    'All');
+  const senRgSel  = populate('sen-region-sel',   P.regions,  'All');
+
+  let senChart = null;
+
+  function refreshSeniority() {
+    const month  = senMonSel.value,  base = senBasSel.value,
+          ac     = senAcSel.value,   seat = senStSel.value,
+          region = senRgSel.value;
+
+    const rows = P.seniority.filter(r => {
+      if (r.month !== month)                         return false;
+      if (base   !== 'All' && r.base     !== base)   return false;
+      if (ac     !== 'All' && r.aircraft !== ac)     return false;
+      if (seat   !== 'All' && r.seat     !== seat)   return false;
+      if (region !== 'All' && r.region   !== region) return false;
+      return true;
+    });
+    rows.sort((a, b) => b.pay_mins - a.pay_mins);
+
+    // ── Chart: x = seniority (high to low), y = flight hours ──
+    // Aggregate across bases so each pilot is one point
+    const senMap = {};
+    rows.forEach(r => {
+      const k = String(r.seniority);
+      if (!senMap[k]) senMap[k] = { pm: 0, mins: 0 };
+      senMap[k].pm   += r.pm_count;
+      senMap[k].mins += r.pay_mins;
+    });
+    const senNums = Object.keys(senMap).map(Number).sort((a, b) => b - a);
+    const chartPts = senNums.map(n => {
+      const s = senMap[String(n)];
+      return {
+        seniority: n,
+        hours: Math.round(s.mins / 60 * 10) / 10,
+        pm:    s.pm,
+        hhmm:  Math.floor(s.mins/60) + ':' + String(s.mins % 60).padStart(2,'0'),
+      };
+    });
+
+    if (senChart) { senChart.destroy(); senChart = null; }
+    const senCtx = document.getElementById('sen-chart');
+    if (senCtx) {
+      try {
+        if (chartPts.length) {
+          senChart = new Chart(senCtx, {
+            type: 'line',
+            data: {
+              labels: chartPts.map(d => d.seniority),
+              datasets: [{
+                label: 'Flight Time (hrs)',
+                data:  chartPts.map(d => d.hours),
+                borderColor: '#34d399',
+                backgroundColor: 'rgba(52,211,153,.12)',
+                borderWidth: 1.5,
+                pointRadius: chartPts.length > 100 ? 2 : 4,
+                pointBackgroundColor: '#15803d',
+                tension: 0.3,
+                fill: true,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    title: (items) => 'Seniority #' + chartPts[items[0].dataIndex].seniority,
+                    afterTitle: (items) => 'PM Sequences: ' + chartPts[items[0].dataIndex].pm,
+                    label: (item) => 'Flight Time: ' + chartPts[item.dataIndex].hhmm,
+                  }
+                }
+              },
+              scales: {
+                x: {
+                  title: { display: true, text: 'Seniority Number (high to low)',
+                           font: { size: 10 }, color: '#7a8aab' },
+                  ticks: { font: { size: 9 }, maxTicksLimit: 20 }
+                },
+                y: {
+                  title: { display: true, text: 'Flight Time (hours)',
+                           font: { size: 10 }, color: '#7a8aab' },
+                  beginAtZero: true,
+                  ticks: { font: { size: 10 } }
+                }
+              }
+            }
+          });
+        }
+      } catch(e) {
+        console.error('Seniority chart error:', e);
+      }
+    }
+
+    const tbody = document.getElementById('sen-tbody');
+    const tfoot = document.getElementById('sen-tfoot');
+    if (!tbody) return;
+
+    let totalPM = 0, totalMins = 0;
+    let html = '';
+    rows.forEach((r, i) => {
+      const cls = i % 2 === 1 ? ' style="background:var(--gray0)"' : '';
+      html += `<tr${cls}>
+        <td>${r.seniority}</td>
+        <td>${r.base}</td><td>${r.aircraft}</td>
+        <td>${r.seat}</td><td>${r.region}</td>
+        <td style="text-align:right">${r.pm_count.toLocaleString()}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${r.pay_hhmm}</td>
+      </tr>`;
+      totalPM   += r.pm_count;
+      totalMins += r.pay_mins;
+    });
+    tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--gray3)">No data for selected filters</td></tr>';
+
+    const hhmm = Math.floor(totalMins/60) + ':' + String(totalMins%60).padStart(2,'0');
+    if (tfoot) {
+      tfoot.innerHTML = `<tr class="grand-total">
+        <td colspan="5">TOTAL (${rows.length} rows)</td>
+        <td style="text-align:right">${totalPM.toLocaleString()}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${hhmm}</td>
+      </tr>`;
+    }
+  }
+
+  [senMonSel, senBasSel, senAcSel, senStSel, senRgSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshSeniority);
+  });
+  // Don't call refreshSeniority() here — the tab is hidden and Chart.js
+  // can't measure a canvas with display:none. It fires on first tab click instead.
+
+  // ── Pay Analysis tab (unchanged) ──
   if (D.pm.pay_737_CA && D.pm.pay_737_CA.col_keys.length) {
     makeBarChart('pm-pay-bar', D.pm.pay_737_CA.rows,
                  D.pm.pay_737_CA.col_keys, 'Monthly PM Pay Hours – 737 CA', false);
   }
 
-  buildTableHeader('pm-all-thead', D.pm.all_bases.col_keys, 'Date', true);
-  buildTable('pm-all-tbody', D.pm.all_bases.rows, D.pm.all_bases.col_keys, 'date', true, null);
+  // ── Wire tabs — call initTabs last so all functions are defined ──
+  let senRendered = false;
+  initTabs('.tab-container', function(tabId) {
+    if (tabId === 'pm-tab-seniority' && !senRendered) {
+      senRendered = true;
+      refreshSeniority();
+    } else if (tabId === 'pm-tab-seniority') {
+      refreshSeniority();
+    }
+  });
 }

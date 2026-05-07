@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Prevent Safari from serving stale cached assets -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Daily Open Trips Counts | Flight Data Stats</title>
-<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/x-icon" href="favicon.ico?v=202605070211">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=202605070211">
 </head>
 <body>
 
@@ -21,7 +25,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-07 01:58 UTC
+        Page generated: 2026-05-07 02:11 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
@@ -81,13 +85,14 @@
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->
-<script src="data/site_data.js"></script>
+<!-- ?v= cache-buster ensures Safari fetches fresh files after each rebuild -->
+<script src="data/site_data.js?v=202605070211"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="assets/charts.js"></script>
+<script src="assets/charts.js?v=202605070211"></script>
 <script>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
   if (typeof MYOT_DATA === 'undefined') {
-    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
+    document.querySelectorAll('.card-value').forEach(function(el) { el.textContent = 'No data'; });
     console.error('site_data.js did not load — MYOT_DATA is undefined.');
     return;
   }
@@ -100,7 +105,7 @@
   } catch(e) {
     console.error('Init error:', e);
   }
-})();
+});
 </script>
 </body>
 </html>

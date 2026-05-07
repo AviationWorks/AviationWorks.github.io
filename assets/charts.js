@@ -122,10 +122,10 @@ function makeSparkline(canvasId, rows) {
             font: { size: 9 },
             maxRotation: 0,
             autoSkip: false,
-            color: (ctx2) => {
-              const lbl = labels[ctx2.index] || '';
+            color: function(tickCtx) {
+              var lbl = labels[tickCtx.index] || '';
               if (!lbl) return 'transparent';
-              const wd = rows[ctx2.index] ? rows[ctx2.index].weekday : -1;
+              var wd = rows[tickCtx.index] ? rows[tickCtx.index].weekday : -1;
               return wd === 5 ? '#c75b00' : wd === 0 ? '#2563a8' : '#15803d';
             }
           },
@@ -295,7 +295,8 @@ function initTabs(containerSel, onSwitch) {
 function buildTable(tbodyId, rows, col_keys, rowKey, showTotal, outlierFn) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
-  let grandTotals = Object.fromEntries(col_keys.map(k => [k, 0]));
+  let grandTotals = {};
+  col_keys.forEach(function(k) { grandTotals[k] = 0; });
   let html = '';
 
   rows.forEach(r => {

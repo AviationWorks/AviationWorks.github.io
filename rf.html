@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RF Sequences | APA OT Stats</title>
+<title>Reserve Trips | Flight Data Stats</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
@@ -16,74 +16,266 @@
     <div class="header-top">
       <div class="header-logo">✈</div>
       <div class="header-titles">
-        <h1>Open Time</h1>
+        <h1>Open Trips</h1>
         <p>Flight Data Analysis</p>
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-06 19:19 UTC
+        Page generated: 2026-05-07 01:58 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
-<a href="daily.html">📊 Daily OT</a>
-<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> PM Sequences</a>
-<a href="rf.html" class="active">🛡️ RF Sequences</a>
+<a href="daily.html">📊 Daily Open Trips</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
+<a href="rf.html" class="active">🛡️ Reserve Trips</a>
 </nav>
   </div>
 </header>
 <main>
 
-<h2 class="page-title">RF (Reserve Flip) Sequence Analysis</h2>
-<p class="note">RF sequences are deduplicated by sequence_number + dep_local. Pay values are in hours.</p>
+<h2 class="page-title">Reserve Trip Analysis</h2>
 
 <div class="tab-container">
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="rf-tab-all">All Bases</button>
-    <button class="tab-btn" data-tab="rf-tab-737">737 CA Detail</button>
-    <button class="tab-btn" data-tab="rf-tab-pay">Pay Analysis</button>
+    <button class="tab-btn active" data-tab="rf-tab-daily">Daily Reserve Volume</button>
+    <button class="tab-btn" data-tab="rf-tab-seniority">Reserve Seniority</button>
+    <button class="tab-btn" data-tab="rf-tab-monthly">Monthly Change in Reserves</button>
   </div>
 
-  <div class="tab-panel active" id="rf-tab-all">
-    <h3 class="section-title">All Bases RF Sequences</h3>
-    
-<div class="chart-box" style="height:280px">
-  <h3>All Bases RF – Monthly Totals</h3>
-  <canvas id="rf-all-monthly-bar"></canvas>
-</div>
-<div class="chart-box" style="height:280px">
-  <h3>All Bases RF – Daily Trend</h3>
-  <canvas id="rf-all-line"></canvas>
-</div>
-<div class="data-table-wrap">
-  <table>
-    <thead id="rf-all-thead"></thead>
-    <tbody id="rf-all-tbody"></tbody>
-  </table>
-</div>
+  <!-- ── Daily Reserve Volume ── -->
+  <div class="tab-panel active" id="rf-tab-daily">
 
-  </div>
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>When &amp; how much</strong> — daily Reserve trip counts over the selected month.
+      Three analytical layers help separate signal from noise:
+    </p>
+    <ul style="font-size:.82rem;color:var(--gray3);margin:-4px 0 14px 20px;line-height:1.8">
+      <li><strong>Bar height</strong> — raw deduplicated Reserve trips for each day. Days with
+          zero trips either had no reserve usage or fell outside the scraped data window.</li>
+      <li><strong>7-day rolling average</strong> — the amber line smooths over weekend and
+          day-of-week effects to reveal the underlying trend. A rising rolling average that
+          persists across multiple weeks is a stronger signal of increased reserve pressure than
+          a single high-count day.</li>
+      <li><strong>1.5&sigma; threshold</strong> — the dashed red line marks mean&nbsp;+&nbsp;1.5
+          standard deviations computed across all historical days in the filtered dataset.
+          Orange bars on days above this line flag statistically unusual reserve demand.
+          The threshold recalculates whenever filters change, so it always reflects the
+          correct historical baseline for the current selection.</li>
+    </ul>
 
-  <div class="tab-panel" id="rf-tab-737">
-    <h3 class="section-title">737 CA RF – by Bid Status</h3>
-    <div class="chart-box" style="height:280px">
-      <canvas id="rf-737-monthly-bar"></canvas>
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group">
+        <label>Month</label>
+        <select id="rf-month-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Base</label>
+        <select id="rf-base-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Aircraft</label>
+        <select id="rf-aircraft-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Seat</label>
+        <select id="rf-seat-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Region</label>
+        <select id="rf-region-sel" class="ctrl-select"></select>
+      </div>
     </div>
-    <div class="chart-box" style="height:280px">
-      <canvas id="rf-737-line"></canvas>
-    </div>
-  </div>
 
-  <div class="tab-panel" id="rf-tab-pay">
-    <h3 class="section-title">737 CA RF Pay (hours/month)</h3>
-    <div class="chart-box" style="height:300px">
-      <canvas id="rf-pay-bar"></canvas>
+    <div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+      <div class="card orange">
+        <div class="card-label">Reserve Trips</div>
+        <div class="card-value" id="rf-card-total">—</div>
+        <div class="card-sub">Selected month &amp; filters</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total Trips</div>
+        <div class="card-value" id="rf-card-ot">—</div>
+        <div class="card-sub">All codes</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Premium Trips</div>
+        <div class="card-value" id="rf-card-pm">—</div>
+        <div class="card-sub">For context</div>
+      </div>
     </div>
-  </div>
+
+    <h3 class="section-title">Daily Reserve Activity</h3>
+    <p class="note">Reserve trips per day. Orange bars = &gt;1.5&sigma; above historical mean. Amber line = 7-day rolling average. Threshold recomputes on every filter change.</p>
+    <div class="chart-box">
+      <div style="height:260px">
+        <canvas id="rf-daily-bar"></canvas>
+      </div>
+    </div>
+
+    <h3 class="section-title">Recent Reserve Activity (60 days, all bases)</h3>
+    <p class="note">60-day rolling view of total daily Reserve trips across all bases — unfiltered, showing the broad trend.</p>
+    <div class="chart-box">
+      <div style="height:90px">
+        <canvas id="rf-sparkline"></canvas>
+      </div>
+      <div class="note" style="margin-top:4px">
+        <span style="color:#2563a8">&#9679; Mon</span>&nbsp;&nbsp;
+        <span style="color:#15803d">&#9679; Thu</span>&nbsp;&nbsp;
+        <span style="color:#c75b00">&#9679; Sat</span>
+      </div>
+    </div>
+
+  </div><!-- /rf-tab-daily -->
+
+  <!-- ── Reserve Seniority ── -->
+  <div class="tab-panel" id="rf-tab-seniority">
+
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>Who</strong> — identifies which seniority numbers are being used most and which
+      are being used least. Three statistical signals work together to surface both ends of
+      that pattern:
+    </p>
+    <ul style="font-size:.82rem;color:var(--gray3);margin:-4px 0 14px 20px;line-height:1.8">
+      <li><strong>Dual outlier thresholds</strong> — the Reserve Trips by Seniority Number
+          chart shows two dashed lines: an upper threshold (mean&nbsp;+&nbsp;1.5&sigma;) flagging
+          seniority numbers used at unusually high frequency, and a lower threshold
+          (mean&nbsp;&minus;&nbsp;1.5&sigma;, floored at zero) flagging seniority numbers assigned
+          significantly fewer Reserve trips. Large
+          <span style="color:#c75b00;font-weight:600">orange points</span> are heavily used;
+          large <span style="color:#2563a8;font-weight:600">blue points</span> were lightly used.</li>
+      <li><strong>Z-score</strong> — shown in the Reserve Usage by Seniority Number table for
+          every seniority number. A z-score of &minus;2.0 means that seniority number was used
+          for far fewer Reserve trips than the group average for the period. Compare z-scores
+          across seniority numbers to see if low or high scores cluster.</li>
+      <li><strong>Seniority burden index</strong> — the summary bar compares Reserve trip load
+          between the higher-numbered and lower-numbered halves of the filtered seniority group.
+          A healthy distribution shows roughly equal trips-per-seniority-number across both halves;
+          a large gap flags that one half is carrying a disproportionate share.</li>
+    </ul>
+
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group">
+        <label>Month</label>
+        <select id="rfs-month-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Base</label>
+        <select id="rfs-base-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Aircraft</label>
+        <select id="rfs-aircraft-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Seat</label>
+        <select id="rfs-seat-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Region</label>
+        <select id="rfs-region-sel" class="ctrl-select"></select>
+      </div>
+    </div>
+
+    <div id="rfs-concentration-bar" style="margin:14px 0 6px;font-size:.82rem;padding:10px 14px;
+         background:var(--gray0);border-radius:var(--radius);border:1px solid var(--gray1)">
+      Computing seniority burden index…
+    </div>
+
+    <h3 class="section-title" style="margin-top:16px">Reserve Trips by Seniority Number</h3>
+    <p class="note">Each point is one seniority number, plotted high-to-low. Large orange points exceed the upper 1.5&sigma; threshold (heavily used). Large blue points fall below the lower 1.5&sigma; threshold (lightly used). Points near the mean appear in amber.</p>
+    <div class="chart-box" style="margin-top:8px">
+      <div style="height:260px">
+        <canvas id="rfs-chart"></canvas>
+      </div>
+    </div>
+
+    <h3 class="section-title">Reserve Usage by Seniority Number</h3>
+    <p class="note">Sorted by trip count descending. Z-scores below &minus;1.5 appear in blue (lightly used); z-scores above +1.5 appear in orange (heavily used). Pay reflects Reserve hours credited (HH:MM).</p>
+    <div class="data-table-wrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Seniority</th>
+          <th style="text-align:left">Base</th>
+          <th style="text-align:left">Aircraft</th>
+          <th style="text-align:left">Seat</th>
+          <th style="text-align:left">Region</th>
+          <th>Reserve Trips</th>
+          <th>Z-Score</th>
+          <th>Pay</th>
+          <th>Flag</th>
+        </tr></thead>
+        <tbody id="rfs-tbody"></tbody>
+        <tfoot id="rfs-tfoot"></tfoot>
+      </table>
+    </div>
+
+  </div><!-- /rf-tab-seniority -->
+
+  <!-- ── Monthly Change in Reserves ── -->
+  <div class="tab-panel" id="rf-tab-monthly">
+
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>Where &amp; how much</strong> — total Reserve hours by month and how they are
+      distributed across bid groups for any selected month. Two analytical layers surface trends
+      and anomalies:
+    </p>
+    <ul style="font-size:.82rem;color:var(--gray3);margin:-4px 0 14px 20px;line-height:1.8">
+      <li><strong>Month-over-month delta</strong> — the table shows both absolute change (HH:MM)
+          and percentage change from the prior month. A green arrow means more Reserve hours were
+          used than the month before; red means fewer. Persistent green arrows across multiple
+          months are a stronger signal of worsening Reserve utilization than any single month spike.
+          The <em>Demand</em> column flags months that exceed the 1.5&sigma; threshold computed
+          across all months in the dataset — these represent statistically abnormal Reserve
+          demand periods worth investigating.</li>
+      <li><strong>Bid group distribution</strong> — the bar chart shows how Reserve hours are
+          split across seat/base/aircraft/region combinations for the selected month. Dominance
+          by a single bid group can indicate localized scheduling stress or staffing gaps
+          concentrated in one fleet or domicile. Use the filters to isolate a specific base or
+          aircraft type to drill into its contribution.</li>
+    </ul>
+
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group">
+        <label>Month</label>
+        <select id="rfp-month-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Base</label>
+        <select id="rfp-base-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Aircraft</label>
+        <select id="rfp-aircraft-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Seat</label>
+        <select id="rfp-seat-sel" class="ctrl-select"></select>
+      </div>
+      <div class="filter-group">
+        <label>Region</label>
+        <select id="rfp-region-sel" class="ctrl-select"></select>
+      </div>
+    </div>
+
+    <h3 class="section-title" style="margin-top:18px">Month-over-Month Reserve Hours</h3>
+    <p class="note">Total Reserve hours per month with change from prior month. Base/Aircraft/Seat/Region filters apply. Green = increase, red = decrease.</p>
+    <div id="rf-pay-delta-wrap" style="overflow-x:auto;margin-bottom:24px"></div>
+
+    <h3 class="section-title">Reserve Hours by Bid Group</h3>
+    <p class="note">Reserve hours broken down by bid group for the selected month and filters, sorted highest to lowest.</p>
+    <div class="chart-box" style="margin-top:8px">
+      <div style="height:260px">
+        <canvas id="rf-pay-filtered-bar"></canvas>
+      </div>
+    </div>
+
+  </div><!-- /rf-tab-monthly -->
+
 </div>
 
 </main>
 <footer>
-  Open Time Flight Data Analysis &bull;
+  Open Trips Flight Data Analysis &bull;
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->

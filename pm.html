@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PM Sequences | APA OT Stats</title>
+<title>Premium Trips | Flight Data Stats</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
@@ -16,37 +16,37 @@
     <div class="header-top">
       <div class="header-logo">✈</div>
       <div class="header-titles">
-        <h1>Open Time</h1>
+        <h1>Open Trips</h1>
         <p>Flight Data Analysis</p>
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-06 19:19 UTC
+        Page generated: 2026-05-07 01:58 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
-<a href="daily.html">📊 Daily OT</a>
-<a href="pm.html" class="active"><span style="color:#34d399;font-weight:900">$</span> PM Sequences</a>
-<a href="rf.html">🛡️ RF Sequences</a>
+<a href="daily.html">📊 Daily Open Trips</a>
+<a href="pm.html" class="active"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
+<a href="rf.html">🛡️ Reserve Trips</a>
 </nav>
   </div>
 </header>
 <main>
 
-<h2 class="page-title">PM Sequences</h2>
+<h2 class="page-title">Premium Trips</h2>
 
 <div class="tab-container">
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="pm-tab-analysis">Daily PM Volume</button>
-    <button class="tab-btn" data-tab="pm-tab-seniority">PM Seniority</button>
-    <button class="tab-btn" data-tab="pm-tab-pay">Monthly Change in PM</button>
+    <button class="tab-btn active" data-tab="pm-tab-analysis">Daily Premium Volume</button>
+    <button class="tab-btn" data-tab="pm-tab-seniority">Premium Seniority</button>
+    <button class="tab-btn" data-tab="pm-tab-pay">Monthly Change in Premium</button>
   </div>
 
   <!-- ── Daily PM Volume ── -->
   <div class="tab-panel active" id="pm-tab-analysis">
 
     <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
-      <strong>When &amp; how much</strong> — daily PM sequence counts over the selected month, showing which days premium is being offered and at what volume.
+      <strong>When &amp; how much</strong> — daily Premium trip counts over the selected month, showing which days premium is being offered and at what volume.
     </p>
 
     <div class="filter-bar" style="margin-top:0">
@@ -74,32 +74,32 @@
 
     <div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
       <div class="card green">
-        <div class="card-label">PM Sequences</div>
+        <div class="card-label">Premium Trips</div>
         <div class="card-value" id="pm-card-total">—</div>
         <div class="card-sub">Premium Pay</div>
       </div>
       <div class="card">
-        <div class="card-label">Total OT Rows</div>
+        <div class="card-label">Total Open Trips Rows</div>
         <div class="card-value" id="pm-card-ot">—</div>
         <div class="card-sub">All codes</div>
       </div>
       <div class="card orange">
-        <div class="card-label">RF Sequences</div>
+        <div class="card-label">Reserve Trips</div>
         <div class="card-value" id="pm-card-rf">—</div>
         <div class="card-sub">Reserve Usage</div>
       </div>
     </div>
 
-    <h3 class="section-title">Monthly PM Activity</h3>
-    <p class="note">Shows the number of PM sequences for each day of the selected month.</p>
+    <h3 class="section-title">Monthly Premium Activity</h3>
+    <p class="note">Shows the number of Premium trips for each day of the selected month.</p>
     <div class="chart-box">
       <div style="height:260px">
         <canvas id="pm-monthly-bar"></canvas>
       </div>
     </div>
 
-    <h3 class="section-title">Recent PM Activity (60 days, all bases)</h3>
-    <p class="note">60-day rolling view of total daily PM sequences across all bases — unfiltered, showing the broad trend.</p>
+    <h3 class="section-title">Recent Premium Activity (60 days, all bases)</h3>
+    <p class="note">60-day rolling view of total daily Premium trips across all bases — unfiltered, showing the broad trend.</p>
     <div class="chart-box">
       <div style="height:90px">
         <canvas id="pm-sparkline"></canvas>
@@ -117,7 +117,7 @@
   <div class="tab-panel" id="pm-tab-seniority">
 
     <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
-      <strong>Who &amp; how much</strong> — which seniority numbers are receiving premium sequences in the selected month, ranked by the number of PM sequences in the graph below or the total flight time earned in the table at the bottom.
+      <strong>Who &amp; how much</strong> — which seniority numbers are receiving Premium trips in the selected month, ranked by the number of Premium trips in the graph below or the total pay earned in the table at the bottom.
     </p>
 
     <div class="filter-bar" style="margin-top:0">
@@ -143,16 +143,16 @@
       </div>
     </div>
 
-    <h3 class="section-title" style="margin-top:16px">PM Sequences by Seniority Number</h3>
-    <p class="note">Number of PM sequences per seniority number, plotted high-to-low. Hover for details.</p>
+    <h3 class="section-title" style="margin-top:16px">Premium Trips by Seniority Number</h3>
+    <p class="note">Number of Premium trips per seniority number, plotted high-to-low. Hover for details.</p>
     <div class="chart-box" style="margin-top:8px">
       <div style="height:260px">
         <canvas id="sen-chart"></canvas>
       </div>
     </div>
 
-    <h3 class="section-title">Flight Time Earned by Seniority Number</h3>
-    <p class="note">Total premium flight time (HH:MM) per seniority number for the selected filters, sorted highest to lowest. Seniority numbers flying in multiple bases appear on separate rows.</p>
+    <h3 class="section-title">Pay Earned by Seniority Number</h3>
+    <p class="note">Total premium pay (HH:MM) per seniority number for the selected filters, sorted highest to lowest. Seniority numbers appearing in multiple bases show on separate rows.</p>
     <div class="data-table-wrap">
       <table>
         <thead><tr>
@@ -161,8 +161,8 @@
           <th style="text-align:left">Aircraft</th>
           <th style="text-align:left">Seat</th>
           <th style="text-align:left">Region</th>
-          <th>PM Sequences</th>
-          <th>Flight Time</th>
+          <th>Premium Trips</th>
+          <th>Pay</th>
         </tr></thead>
         <tbody id="sen-tbody"></tbody>
         <tfoot id="sen-tfoot"></tfoot>
@@ -175,7 +175,7 @@
   <div class="tab-panel" id="pm-tab-pay">
 
     <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
-      <strong>Where &amp; how much</strong> — total PM hours by month across all bases, and how it is distributed across bid groups for a selected month.
+      <strong>Where &amp; how much</strong> — total Premium hours by month across all bases, and how it is distributed across bid groups for a selected month.
     </p>
 
     <div class="filter-bar" style="margin-top:0">
@@ -201,12 +201,12 @@
       </div>
     </div>
 
-    <h3 class="section-title" style="margin-top:18px">Month-over-Month PM</h3>
-    <p class="note">Total PM hours per month with change from prior month. Base/Aircraft/Seat/Region filters apply. Green = increase, red = decrease.</p>
+    <h3 class="section-title" style="margin-top:18px">Month-over-Month Premium</h3>
+    <p class="note">Total Premium hours per month with change from prior month. Base/Aircraft/Seat/Region filters apply. Green = increase, red = decrease.</p>
     <div id="pm-pay-delta-wrap" style="overflow-x:auto;margin-bottom:24px"></div>
 
     <h3 class="section-title">Pay Distribution by Bid Group</h3>
-    <p class="note">PM hours broken down by bid group for the selected month and filters.</p>
+    <p class="note">Premium hours broken down by bid group for the selected month and filters.</p>
     <div class="chart-box" style="margin-top:8px">
       <div style="height:260px">
         <canvas id="pm-pay-filtered-bar"></canvas>
@@ -219,7 +219,7 @@
 
 </main>
 <footer>
-  Open Time Flight Data Analysis &bull;
+  Open Trips Flight Data Analysis &bull;
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->

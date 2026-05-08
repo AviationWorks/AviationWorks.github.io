@@ -3,15 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Prevent Safari from serving stale cached assets -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Reserve Trips | Flight Data Stats</title>
-<link rel="icon" type="image/x-icon" href="favicon.ico?v=202605070211">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=202605070211">
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
@@ -25,13 +21,15 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-07 02:11 UTC
+        Page generated: 2026-05-08 02:24 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
-<a href="daily.html">📊 Daily Open Trips</a>
+<a href="daily.html">📊 Codes</a>
 <a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
 <a href="rf.html" class="active">🛡️ Reserve Trips</a>
+<a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
 </nav>
   </div>
 </header>
@@ -85,16 +83,16 @@
         <select id="rf-seat-sel" class="ctrl-select"></select>
       </div>
       <div class="filter-group">
-        <label>Region</label>
+        <label>Division</label>
         <select id="rf-region-sel" class="ctrl-select"></select>
       </div>
     </div>
 
-    <div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+    <div class="card-row" style="grid-template-columns:repeat(5,1fr);margin-top:14px">
       <div class="card orange">
         <div class="card-label">Reserve Trips</div>
         <div class="card-value" id="rf-card-total">—</div>
-        <div class="card-sub">Selected month &amp; filters</div>
+        <div class="card-sub">FOS add code = RF</div>
       </div>
       <div class="card">
         <div class="card-label">Total Trips</div>
@@ -104,7 +102,17 @@
       <div class="card green">
         <div class="card-label">Premium Trips</div>
         <div class="card-value" id="rf-card-pm">—</div>
-        <div class="card-sub">For context</div>
+        <div class="card-sub">FOS add codes = PM/OG/PR/PH/P7/HP/7P</div>
+      </div>
+      <div class="card" style="border-top-color:#7c3aed">
+        <div class="card-label">Aggressive Pickup</div>
+        <div class="card-value" id="rf-card-apu">—</div>
+        <div class="card-sub">FOS add codes = AL/AH/AG</div>
+      </div>
+      <div class="card" style="border-top-color:#dc2626">
+        <div class="card-label">Fatigue</div>
+        <div class="card-value" id="rf-card-ft">—</div>
+        <div class="card-sub">FOS add code = FT</div>
       </div>
     </div>
 
@@ -175,7 +183,7 @@
         <select id="rfs-seat-sel" class="ctrl-select"></select>
       </div>
       <div class="filter-group">
-        <label>Region</label>
+        <label>Division</label>
         <select id="rfs-region-sel" class="ctrl-select"></select>
       </div>
     </div>
@@ -202,7 +210,7 @@
           <th style="text-align:left">Base</th>
           <th style="text-align:left">Aircraft</th>
           <th style="text-align:left">Seat</th>
-          <th style="text-align:left">Region</th>
+          <th style="text-align:left">Division</th>
           <th>Reserve Trips</th>
           <th>Z-Score</th>
           <th>Pay</th>
@@ -232,7 +240,7 @@
           across all months in the dataset — these represent statistically abnormal Reserve
           demand periods worth investigating.</li>
       <li><strong>Bid group distribution</strong> — the bar chart shows how Reserve hours are
-          split across seat/base/aircraft/region combinations for the selected month. Dominance
+          split across seat/base/aircraft/division combinations for the selected month. Dominance
           by a single bid group can indicate localized scheduling stress or staffing gaps
           concentrated in one fleet or domicile. Use the filters to isolate a specific base or
           aircraft type to drill into its contribution.</li>
@@ -256,13 +264,13 @@
         <select id="rfp-seat-sel" class="ctrl-select"></select>
       </div>
       <div class="filter-group">
-        <label>Region</label>
+        <label>Division</label>
         <select id="rfp-region-sel" class="ctrl-select"></select>
       </div>
     </div>
 
     <h3 class="section-title" style="margin-top:18px">Month-over-Month Reserve Hours</h3>
-    <p class="note">Total Reserve hours per month with change from prior month. Base/Aircraft/Seat/Region filters apply. Green = increase, red = decrease.</p>
+    <p class="note">Total Reserve hours per month with change from prior month. Base/Aircraft/Seat/Division filters apply. Green = increase, red = decrease.</p>
     <div id="rf-pay-delta-wrap" style="overflow-x:auto;margin-bottom:24px"></div>
 
     <h3 class="section-title">Reserve Hours by Bid Group</h3>
@@ -283,14 +291,13 @@
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->
-<!-- ?v= cache-buster ensures Safari fetches fresh files after each rebuild -->
-<script src="data/site_data.js?v=202605070211"></script>
+<script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="assets/charts.js?v=202605070211"></script>
+<script src="assets/charts.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
   if (typeof MYOT_DATA === 'undefined') {
-    document.querySelectorAll('.card-value').forEach(function(el) { el.textContent = 'No data'; });
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
     console.error('site_data.js did not load — MYOT_DATA is undefined.');
     return;
   }
@@ -303,7 +310,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch(e) {
     console.error('Init error:', e);
   }
-});
+})();
 </script>
 </body>
 </html>

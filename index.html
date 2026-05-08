@@ -3,15 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Prevent Safari from serving stale cached assets -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Home | Flight Data Stats</title>
-<link rel="icon" type="image/x-icon" href="favicon.ico?v=202605070211">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=202605070211">
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
@@ -25,19 +21,21 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-07 02:11 UTC
+        Page generated: 2026-05-08 02:24 UTC
       </div>
     </div>
     <nav><a href="index.html" class="active">🏠 Home</a>
-<a href="daily.html">📊 Daily Open Trips</a>
+<a href="daily.html">📊 Codes</a>
 <a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
 <a href="rf.html">🛡️ Reserve Trips</a>
+<a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
 </nav>
   </div>
 </header>
 <main>
 
-<h2 class="page-title">Open Trips Dashboard</h2>
+<h2 class="page-title">Open Trips Activity</h2>
 
 <p style="font-size:.82rem;color:var(--gray3);margin:4px 0 16px">
   Open Trips tracks all changes made to trips available in the open trips pool —
@@ -65,31 +63,41 @@
     <select id="card-seat-sel" class="ctrl-select"></select>
   </div>
   <div class="filter-group">
-    <label>Region</label>
+    <label>Division</label>
     <select id="card-region-sel" class="ctrl-select"></select>
   </div>
 </div>
 
-<div class="card-row">
+<div class="card-row" style="grid-template-columns:repeat(5,1fr)">
   <div class="card">
     <div class="card-label">Total Trips</div>
     <div class="card-value" id="card-total">—</div>
-    <div class="card-sub">All codes, selected filters</div>
+    <div class="card-sub">All codes</div>
   </div>
   <div class="card orange">
     <div class="card-label">Reserve Trips</div>
     <div class="card-value" id="card-rf">—</div>
-    <div class="card-sub">Reserve Usage</div>
+    <div class="card-sub">FOS add code = RF</div>
   </div>
   <div class="card green">
     <div class="card-label">Premium Trips</div>
     <div class="card-value" id="card-pm">—</div>
-    <div class="card-sub">Premium Pay</div>
+    <div class="card-sub">FOS add codes = PM/OG/PR/PH/P7/HP/7P</div>
+  </div>
+  <div class="card" style="border-top-color:#7c3aed">
+    <div class="card-label">Aggressive Pickup</div>
+    <div class="card-value" id="card-apu">—</div>
+    <div class="card-sub">FOS add codes = AL/AH/AG</div>
+  </div>
+  <div class="card" style="border-top-color:#dc2626">
+    <div class="card-label">Fatigue</div>
+    <div class="card-value" id="card-ft">—</div>
+    <div class="card-sub">FOS add code = FT</div>
   </div>
 </div>
 
 <h3 class="section-title">Monthly Open Trips Activity</h3>
-<p class="note">Daily Open Trips row count for the selected month and filters. Red bars exceed the 1.5&sigma; threshold — computed across all historical days in the filtered dataset — flagging days with unusually high scheduling activity. The dashed threshold line recalculates each time a filter changes.</p>
+<p class="note">Daily Open Trips row count for the selected month and filters. High activity can indicate operational disruptions, heavy re-crewing, or period-end schedule adjustments. Red bars exceed the 1.5&sigma; threshold — computed across all historical days in the filtered dataset — flagging days with unusually high scheduling activity. The dashed threshold line recalculates each time a filter changes.</p>
 <div class="chart-box">
   <div style="height:280px">
     <canvas id="recent-bar"></canvas>
@@ -121,28 +129,28 @@
           <td>320_CA</td>
           <td>58,258</td>
           <td>6,514</td>
-          <td>799</td>
+          <td>965</td>
           <td>2026-04-25</td>
           <td>2026-05-01</td>
         </tr><tr>
           <td>320_FO</td>
           <td>63,235</td>
           <td>7,380</td>
-          <td>829</td>
+          <td>976</td>
           <td>2026-04-25</td>
           <td>2026-05-01</td>
         </tr><tr>
           <td>737_CA</td>
           <td>54,451</td>
           <td>6,308</td>
-          <td>1,160</td>
+          <td>1,577</td>
           <td>2026-04-25</td>
           <td>2026-05-01</td>
         </tr><tr>
           <td>737_FO</td>
           <td>59,884</td>
           <td>7,007</td>
-          <td>995</td>
+          <td>1,170</td>
           <td>2026-04-25</td>
           <td>2026-05-01</td>
         </tr></tbody>
@@ -154,8 +162,9 @@
   This site displays aggregated Open Trips flight data statistics.
   No individual pilot information is shown.
   Navigate using the menu above to explore <a href="daily.html">Daily Open Trips counts</a>,
-  <a href="pm.html">Premium trips</a>, and
-  <a href="rf.html">Reserve trips</a>.
+  <a href="pm.html">Premium trips</a>,
+  <a href="rf.html">Reserve trips</a>, and
+  <a href="apu.html">Aggressive Pickup trips</a>.
 </p>
 
 </main>
@@ -164,14 +173,13 @@
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->
-<!-- ?v= cache-buster ensures Safari fetches fresh files after each rebuild -->
-<script src="data/site_data.js?v=202605070211"></script>
+<script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="assets/charts.js?v=202605070211"></script>
+<script src="assets/charts.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
   if (typeof MYOT_DATA === 'undefined') {
-    document.querySelectorAll('.card-value').forEach(function(el) { el.textContent = 'No data'; });
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
     console.error('site_data.js did not load — MYOT_DATA is undefined.');
     return;
   }
@@ -184,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch(e) {
     console.error('Init error:', e);
   }
-});
+})();
 </script>
 </body>
 </html>

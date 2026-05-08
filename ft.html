@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fatigue | Flight Data Stats</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header id="site-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-logo">✈</div>
+      <div class="header-titles">
+        <h1>Open Trips</h1>
+        <p>Flight Data Analysis</p>
+      </div>
+      <div class="header-meta">
+        Last scrape: <strong>2026-05-01</strong><br>
+        Page generated: 2026-05-08 02:24 UTC
+      </div>
+    </div>
+    <nav><a href="index.html">🏠 Home</a>
+<a href="daily.html">📊 Codes</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
+<a href="rf.html">🛡️ Reserve Trips</a>
+<a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html" class="active"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
+</nav>
+  </div>
+</header>
+<main>
+
+<h2 class="page-title">Fatigue</h2>
+
+<p style="font-size:.82rem;color:var(--gray3);margin:4px 0 16px">
+  The FT code is a FOS add code, it is applied following a post-fatigue rest period.
+  This page only captures those additions. Many fatigued trips will not appear here if
+  they were handled solely through a fatigue removal code, which has its own separate
+  code and is not captured by FT. Counts here should be read as a lower-bound indicator
+  of fatigue activity, not a complete picture. We believe it is important to provide a
+  comprehensive fatigue picture and will continue to work toward that goal.
+</p>
+
+<div class="filter-bar">
+  <div class="filter-group"><label>Month</label>
+    <select id="ft-month-sel" class="ctrl-select"></select></div>
+  <div class="filter-group"><label>Base</label>
+    <select id="ft-base-sel" class="ctrl-select"></select></div>
+  <div class="filter-group"><label>Aircraft</label>
+    <select id="ft-aircraft-sel" class="ctrl-select"></select></div>
+  <div class="filter-group"><label>Seat</label>
+    <select id="ft-seat-sel" class="ctrl-select"></select></div>
+  <div class="filter-group"><label>Division</label>
+    <select id="ft-region-sel" class="ctrl-select"></select></div>
+</div>
+
+<div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+  <div class="card" style="border-top-color:#dc2626">
+    <div class="card-label">Fatigue</div>
+    <div class="card-value" id="ft-card-total">—</div>
+    <div class="card-sub">FOS add code = FT</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Distinct Trips</div>
+    <div class="card-value" id="ft-card-sequences">—</div>
+    <div class="card-sub">Unique sequence numbers</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Total Trips</div>
+    <div class="card-value" id="ft-card-ot">—</div>
+    <div class="card-sub">All codes</div>
+  </div>
+</div>
+
+<h3 class="section-title">Fatigue Trip Detail</h3>
+<p class="note">Each row is a unique trip that received an FT add code in the selected month
+  and filters, showing the sequence number, departure date, and bid group. Sorted by
+  sequence number.</p>
+<div class="data-table-wrap">
+  <table>
+    <thead><tr>
+      <th style="text-align:left">Sequence</th>
+      <th style="text-align:left">Departure</th>
+      <th style="text-align:left">Base</th>
+      <th style="text-align:left">Aircraft</th>
+      <th style="text-align:left">Seat</th>
+      <th style="text-align:left">Division</th>
+    </tr></thead>
+    <tbody id="ft-tbody"></tbody>
+    <tfoot id="ft-tfoot"></tfoot>
+  </table>
+</div>
+
+</main>
+<footer>
+  Open Trips Flight Data Analysis &bull;
+  <a href="index.html">Home</a>
+</footer>
+<!-- Load data FIRST, then charting library, then our code, then init -->
+<script src="data/site_data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/charts.js"></script>
+<script>
+(function() {
+  if (typeof MYOT_DATA === 'undefined') {
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
+    console.error('site_data.js did not load — MYOT_DATA is undefined.');
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js did not load from CDN.');
+    return;
+  }
+  try {
+    initFT(MYOT_DATA);
+  } catch(e) {
+    console.error('Init error:', e);
+  }
+})();
+</script>
+</body>
+</html>

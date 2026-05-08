@@ -122,10 +122,10 @@ function makeSparkline(canvasId, rows) {
             font: { size: 9 },
             maxRotation: 0,
             autoSkip: false,
-            color: function(tickCtx) {
-              var lbl = labels[tickCtx.index] || '';
+            color: (ctx2) => {
+              const lbl = labels[ctx2.index] || '';
               if (!lbl) return 'transparent';
-              var wd = rows[tickCtx.index] ? rows[tickCtx.index].weekday : -1;
+              const wd = rows[ctx2.index] ? rows[ctx2.index].weekday : -1;
               return wd === 5 ? '#c75b00' : wd === 0 ? '#2563a8' : '#15803d';
             }
           },
@@ -259,11 +259,11 @@ function updateCards(D, month, base, aircraft, seat, region) {
     if (region   !== 'All' && r.region   !== region)   return;
     total += r.total; rf += r.rf;
   });
-  // PM: use deduplicated count from pm_page.daily
-  let pm = 0;
+  // PM, APU, FT: use deduplicated counts from their page.daily arrays
+  let pm = 0, apu = 0, ft = 0;
   if (D.pm_page) {
     D.pm_page.daily.forEach(r => {
-      if (r.month    !== month)                      return;
+      if (r.month    !== month)                          return;
       if (base     !== 'All' && r.base     !== base)     return;
       if (aircraft !== 'All' && r.aircraft !== aircraft) return;
       if (seat     !== 'All' && r.seat     !== seat)     return;
@@ -271,9 +271,33 @@ function updateCards(D, month, base, aircraft, seat, region) {
       pm += r.count;
     });
   }
+  if (D.apu_page) {
+    D.apu_page.daily.forEach(r => {
+      if (r.month    !== month)                          return;
+      if (base     !== 'All' && r.base     !== base)     return;
+      if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+      if (seat     !== 'All' && r.seat     !== seat)     return;
+      if (region   !== 'All' && r.region   !== region)   return;
+      apu += r.count;
+    });
+  }
+  if (D.ft_page) {
+    D.ft_page.detail.forEach(r => {
+      if (r.month    !== month)                          return;
+      if (base     !== 'All' && r.base     !== base)     return;
+      if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+      if (seat     !== 'All' && r.seat     !== seat)     return;
+      if (region   !== 'All' && r.region   !== region)   return;
+      ft += r.count;
+    });
+  }
   document.getElementById('card-total').textContent = total.toLocaleString();
   document.getElementById('card-rf').textContent    = rf.toLocaleString();
   document.getElementById('card-pm').textContent    = pm.toLocaleString();
+  const apuEl = document.getElementById('card-apu');
+  if (apuEl) apuEl.textContent = apu.toLocaleString();
+  const ftEl = document.getElementById('card-ft');
+  if (ftEl) ftEl.textContent = ft.toLocaleString();
 }
 
 /* ── Tab logic ── */
@@ -295,8 +319,7 @@ function initTabs(containerSel, onSwitch) {
 function buildTable(tbodyId, rows, col_keys, rowKey, showTotal, outlierFn) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
-  let grandTotals = {};
-  col_keys.forEach(function(k) { grandTotals[k] = 0; });
+  let grandTotals = Object.fromEntries(col_keys.map(k => [k, 0]));
   let html = '';
 
   rows.forEach(r => {
@@ -374,27 +397,238 @@ function initIndex(D) {
 }
 
 function initDaily(D) {
-  initTabs('.tab-container');
+  var P = D.daily_code_page;
+  if (!P) return;
 
-  // All bases monthly bar
-  makeBarChart('daily-all-monthly-bar', D.daily.all_bases.monthly,
-               D.daily.all_bases.col_keys, 'Monthly Open Trips Rows – All Bases', true);
+  // ── Code lookup tables ─────────────────────────────────────────────────────
+  //
+  // Colour families (per spec):
+  //   ORANGE  – Reserve:           RF
+  //   GREEN   – Premium:           PM, OG, PR, PH, P7, HP, 7P
+  //   PURPLE  – Aggressive Pickup: AL, AH, AG
+  //   RED     – Fatigue:           FT
+  //   BLUE    – Open Trips:        everything not in the above sets
+  //   GRAY    – explicitly unknown / catch-all fallback
+  //
+  var RESERVE_SET = new Set(['RF']);
+  var PREMIUM_SET = new Set(['PM','OG','PR','PH','P7','HP','7P']);
+  var APU_SET     = new Set(['AL','AH','AG']);
+  var FATIGUE_SET = new Set(['FT']);
 
-  // All bases daily line
-  makeLineChart('daily-all-line', D.daily.all_bases.rows,
-                D.daily.all_bases.col_keys, '');
+  var CODE_DESC = {
+    'OT': 'Trip Trade with Open Time (PBS: Non-Duty Absence)',
+    'RF': 'Reserve Flying (Awards/Assignments)',
+    'TT': 'Trip Trade (PBS: Non-Duty Absence)',
+    'MU': 'Pickup Flying',
+    'Mu': 'Pickup Flying',
+    'SP': 'Pickup Flying – straight from TTS with Open Time',
+    'IE': 'Initial Operating Experience (OE) (PBS: Non-Duty Absence)',
+    'SD': 'Sequence added / drop thru TTS with Open Time (PBS: Non-Duty Absence)',
+    'PM': 'Premium Flying at 50% – Lineholder. Awarded from TTS, DOTC, or Aggressive Pickup',
+    'TV': 'Pilot picked up trip over VMAX using TTS',
+    'MO': 'Pickup Flying – out of base',
+    'AL': 'Aggressive Pickup – Lineholder, Base Rate (Pay and Credit)',
+    'EA': 'Early Award/Assignment – DOTC Volunteer in RAS signing in prior to 1000 on first Reserve day',
+    'OG': 'Over Guarantee – Reserve only',
+    'PR': 'Premium Flying at 50% – Reserve. Awarded through DOTC or Aggressive Pickup',
+    '25': 'Miscellaneous Add – Other (normally Reserves)',
+    'RO': 'Recovery Obligation – Lineholder',
+    'MF': 'Management Flying – LQ Requests',
+    'HP': 'Aggressive Pickup (Premium family)',
+    'AH': 'Aggressive Pickup – Lineholder. Pick-up over cancelled Trip Footprint (Obligation met); Pay Only',
+    'AG': 'Aggressive Pickup – Reserves. Pay Only, Over Guarantee',
+    '7P': 'Aggressive Pickup (Premium family)',
+    'PH': 'Aggressive Pickup (Premium family)',
+    'P7': 'Aggressive Pickup (Premium family)',
+    'RP': 'Report. Day 1 pay protection (lineholder) or no-go (reserve) for cancellation',
+    'RA': 'Reassignment. Normally used on HI1 for lineholders (AF used on HI3) – 2023 CBA Section 15.N',
+    'AR': 'Reserve Flying – Opposite Division (Awards/Assignments)',
+    'CH': 'Changeover pairing. End-of-month trip changed to next-month trip',
+    'HY': 'Hybrid day assignment. Pay only, no credit',
+    'PD': 'Consolidation Flying',
+    'MN': 'RO Pickup on Footprint (MU on FP). Pay and no credit',
+    'CD': 'Check pilot proficiency displacement',
+    'AP': 'Apportionment pays',
+    'OD': 'Reserve Flying – Assignment into DFP prior to 1200 HBT on a non-Golden DFP',
+    'SS': 'Self-Repair. Trip awarded to Lineholder from Open Time satisfying Self-Repair provisions after Full Trip Cancellation – 2023 CBA Section 4.C.4.b.(1)',
+    'FM': 'RO Out of Base Pickup on Footprint (MO on FP). Pay and no credit',
+    'FT': 'Full Trip adds following post-fatigue rest, assigned at time of fatigue removal',
+    'SW': 'Pilot receiving a Shared Trip (new split-off portion), without RIG',
+    'DP': 'Management Flying – LQ Requests Displacement',
+    'OR': 'Recovery Obligation for OG/PR',
+    'SR': 'Original pilot who Shared Trip (remainder of original trip); existing RIG added',
+    'DF': 'RO Trip Drop on Footprint (SD on FP). Pay and no credit',
+  };
 
-  // 737 CA bar
-  if (D.daily['737_CA'] && D.daily['737_CA'].col_keys.length) {
-    makeBarChart('daily-737-monthly-bar', D.daily['737_CA'].monthly,
-                 D.daily['737_CA'].col_keys, 'Monthly Open Trips Rows – 737 CA', true);
-    makeLineChart('daily-737-line', D.daily['737_CA'].rows,
-                  D.daily['737_CA'].col_keys, '');
+  function codeDesc(code) {
+    return CODE_DESC[code] || CODE_DESC[code.toUpperCase()] || '';
   }
 
-  // Tables
-  buildTableHeader('daily-all-thead', D.daily.all_bases.col_keys, 'Date', true);
-  buildTable('daily-all-tbody', D.daily.all_bases.rows, D.daily.all_bases.col_keys, 'date', true, null);
+  function codeColor(code) {
+    if (RESERVE_SET.has(code))           return 'rgba(199,91,0,.75)';    // orange – Reserve
+    if (PREMIUM_SET.has(code))           return 'rgba(52,211,153,.75)';  // green  – Premium
+    if (APU_SET.has(code))               return 'rgba(124,58,237,.75)';  // purple – Aggressive Pickup
+    if (FATIGUE_SET.has(code))           return 'rgba(220,38,38,.75)';   // red    – Fatigue
+    return 'rgba(37,99,168,.75)';                                         // blue   – Open Trips (inclusive)
+  }
+  function codeBorder(code) {
+    if (RESERVE_SET.has(code))           return '#c75b00';
+    if (PREMIUM_SET.has(code))           return '#15803d';
+    if (APU_SET.has(code))               return '#7c3aed';
+    if (FATIGUE_SET.has(code))           return '#dc2626';
+    return '#2563a8';
+  }
+  function codeFamily(code) {
+    if (RESERVE_SET.has(code))           return 'Reserve';
+    if (PREMIUM_SET.has(code))           return 'Premium';
+    if (APU_SET.has(code))               return 'Aggressive Pickup';
+    if (FATIGUE_SET.has(code))           return 'Fatigue';
+    return 'Open Trips';
+  }
+
+  // ── Populate helper ────────────────────────────────────────────────────────
+  function populate(id, options, defaultVal) {
+    var sel = document.getElementById(id);
+    if (!sel) return sel;
+    options.forEach(function(v) {
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+    sel.value = defaultVal;
+    return sel;
+  }
+
+  // ── Filters ────────────────────────────────────────────────────────────────
+  var lastMon    = P.months[P.months.length - 1] || '';
+  var dMonSel    = populate('daily-month-sel',    P.months,   lastMon);
+  var dBasSel    = populate('daily-base-sel',     P.bases,    'All');
+  var dAcSel     = populate('daily-aircraft-sel', P.aircraft, 'All');
+  var dStSel     = populate('daily-seat-sel',     P.seats,    'All');
+  var dRgSel     = populate('daily-region-sel',   P.regions,  'All');
+
+  var codeBarChart = null;
+
+  function refreshDaily() {
+    var month  = dMonSel.value,  base = dBasSel.value,
+        ac     = dAcSel.value,   seat = dStSel.value,
+        region = dRgSel.value;
+
+    // ── Aggregate code counts for selected month + filters ──
+    var codeMap = {};
+    P.rows.forEach(function(r) {
+      if (r.month    !== month)                      return;
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      codeMap[r.code] = (codeMap[r.code] || 0) + r.count;
+    });
+
+    // Sort highest to lowest
+    var codes = Object.keys(codeMap).sort(function(a, b) {
+      return codeMap[b] - codeMap[a];
+    });
+    var counts  = codes.map(function(c) { return codeMap[c]; });
+    var total   = counts.reduce(function(s, v) { return s + v; }, 0);
+    var topCode = codes.length ? codes[0] : '—';
+    var topVal  = codes.length ? codeMap[topCode] : 0;
+
+    // ── Summary cards ──
+    document.getElementById('daily-card-total').textContent = total.toLocaleString();
+    document.getElementById('daily-card-codes').textContent = codes.length.toString();
+    document.getElementById('daily-card-top').textContent   = topCode;
+    var topSub = document.getElementById('daily-card-top-sub');
+    if (topSub) topSub.textContent = topCode !== '—'
+      ? topVal.toLocaleString() + ' trips (' + (topVal / total * 100).toFixed(1) + '%)'
+      : 'Highest volume code';
+
+    // ── Bar chart ──
+    if (codeBarChart) { codeBarChart.destroy(); codeBarChart = null; }
+    var barCtx = document.getElementById('daily-code-bar');
+    if (barCtx && codes.length) {
+      codeBarChart = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: codes,
+          datasets: [{
+            label: 'Trip Count',
+            data:  counts,
+            backgroundColor: codes.map(codeColor),
+            borderColor:     codes.map(codeBorder),
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: {
+              title: function(items) {
+                var c = codes[items[0].dataIndex];
+                return c + '  –  ' + codeFamily(c);
+              },
+              label: function(item) {
+                var pct = total > 0 ? (item.raw / total * 100).toFixed(1) : '0.0';
+                return item.raw.toLocaleString() + ' trips  (' + pct + '% of total)';
+              },
+              afterLabel: function(item) {
+                var d = codeDesc(codes[item.dataIndex]);
+                return d ? d : undefined;
+              }
+            }}
+          },
+          scales: {
+            x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { size: 10 } },
+              title: { display: true, text: 'Trip Count',
+                       font: { size: 10 }, color: '#7a8aab' }
+            }
+          }
+        }
+      });
+    } else if (barCtx && !codes.length) {
+      // No data message
+      if (codeBarChart) { codeBarChart.destroy(); codeBarChart = null; }
+    }
+
+    // ── Detail table ──
+    var tbody = document.getElementById('daily-code-tbody');
+    var tfoot = document.getElementById('daily-code-tfoot');
+    if (!tbody) return;
+    var html = '';
+    codes.forEach(function(code, i) {
+      var cnt = codeMap[code];
+      var pct = total > 0 ? (cnt / total * 100).toFixed(1) : '0.0';
+      var fam  = codeFamily(code);
+      var desc = codeDesc(code);
+      var dotColor = codeBorder(code);
+      var bg = i % 2 === 1 ? ' style="background:var(--gray0)"' : '';
+      html += `<tr${bg}>
+        <td style="font-family:var(--font-mono);font-weight:600;color:${dotColor}">${code}</td>
+        <td style="text-align:right">${cnt.toLocaleString()}</td>
+        <td style="text-align:right">${pct}%</td>
+        <td style="color:var(--gray3);font-size:.82rem">${fam}</td>
+        <td style="color:var(--gray4);font-size:.79rem;max-width:340px">${desc}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center;color:var(--gray3)">No data for selected filters</td></tr>';
+    if (tfoot) {
+      tfoot.innerHTML = `<tr class="grand-total">
+        <td>TOTAL</td>
+        <td style="text-align:right">${total.toLocaleString()}</td>
+        <td style="text-align:right">100%</td>
+        <td colspan="2"></td>
+      </tr>`;
+    }
+  }
+
+  [dMonSel, dBasSel, dAcSel, dStSel, dRgSel].forEach(function(s) {
+    if (s) s.addEventListener('change', refreshDaily);
+  });
+  refreshDaily();
 }
 
 function initRF(D) {
@@ -529,9 +763,22 @@ function initRF(D) {
         pmTotal += r.count;
       });
     }
+    let rfApuTotal = 0;
+    if (D.apu_page) {
+      D.apu_page.daily.forEach(r => {
+        if (!rfFilter(r, month, base, ac, seat, region)) return;
+        rfApuTotal += r.count;
+      });
+    }
     document.getElementById('rf-card-total').textContent = rfTotal.toLocaleString();
     document.getElementById('rf-card-ot').textContent    = otTotal.toLocaleString();
     document.getElementById('rf-card-pm').textContent    = pmTotal.toLocaleString();
+    const rfApuEl = document.getElementById('rf-card-apu');
+    if (rfApuEl) rfApuEl.textContent = rfApuTotal.toLocaleString();
+    let rfFtTotal = 0;
+    if (D.ft_page) { D.ft_page.detail.forEach(r => { if (rfFilter(r, month, base, ac, seat, region)) rfFtTotal += r.count; }); }
+    const rfFtEl = document.getElementById('rf-card-ft');
+    if (rfFtEl) rfFtEl.textContent = rfFtTotal.toLocaleString();
 
     // ── Std dev threshold from full history (filtered) ──
     const allDayMap = {};
@@ -1107,18 +1354,29 @@ function initPM(D) {
     return true;
   }
 
+  // Premium code colour palette (7 codes, green family)
+  const PM_CODE_COLORS = {
+    'PM': { bg: 'rgba(21,128,61,.80)',   border: '#15803d' },
+    'OG': { bg: 'rgba(34,197,94,.75)',   border: '#16a34a' },
+    'PR': { bg: 'rgba(52,211,153,.75)',  border: '#059669' },
+    'PH': { bg: 'rgba(110,231,183,.75)', border: '#34d399' },
+    'P7': { bg: 'rgba(167,243,208,.80)', border: '#6ee7b7' },
+    'HP': { bg: 'rgba(187,247,208,.80)', border: '#86efac' },
+    '7P': { bg: 'rgba(220,252,231,.90)', border: '#bbf7d0' },
+  };
+  const PM_CODE_ORDER = ['PM','OG','PR','PH','P7','HP','7P'];
+
   function refreshPMAnalysis() {
-    const month = pmMonSel.value, base = pmBasSel.value,
-          ac    = pmAcSel.value,  seat = pmStSel.value,
+    const month  = pmMonSel.value, base = pmBasSel.value,
+          ac     = pmAcSel.value,  seat = pmStSel.value,
           region = pmRgSel.value;
 
-    // ── Cards: filter monthly_cards for Total Open Trips + Reserve, pm_page.daily for Premium ──
-    let pmTotal = 0, otTotal = 0, rfTotal = 0;
+    // ── Cards ──
+    let pmTotal = 0, otTotal = 0, rfTotal = 0, apuTotal = 0;
     P.daily.forEach(r => {
       if (!pmFilter(r, month, base, ac, seat, region)) return;
       pmTotal += r.count;
     });
-    // Open Trips + Reserve from monthly_cards detail
     const mcDetail = (D.monthly_cards.detail[month] || []);
     mcDetail.forEach(r => {
       if (base   !== 'All' && r.base     !== base)   return;
@@ -1127,44 +1385,77 @@ function initPM(D) {
       if (region !== 'All' && r.region   !== region) return;
       otTotal += r.total; rfTotal += r.rf;
     });
+    if (D.apu_page) {
+      D.apu_page.daily.forEach(r => {
+        if (!pmFilter(r, month, base, ac, seat, region)) return;
+        apuTotal += r.count;
+      });
+    }
     document.getElementById('pm-card-total').textContent = pmTotal.toLocaleString();
     document.getElementById('pm-card-ot').textContent    = otTotal.toLocaleString();
+    const pmApuEl = document.getElementById('pm-card-apu');
+    if (pmApuEl) pmApuEl.textContent = apuTotal.toLocaleString();
     document.getElementById('pm-card-rf').textContent    = rfTotal.toLocaleString();
+    let pmFtTotal = 0;
+    if (D.ft_page) { D.ft_page.detail.forEach(r => { if (pmFilter(r, month, base, ac, seat, region)) pmFtTotal += r.count; }); }
+    const pmFtEl = document.getElementById('pm-card-ft');
+    if (pmFtEl) pmFtEl.textContent = pmFtTotal.toLocaleString();
 
-    // ── Bar chart: daily PM counts for the selected month ──
-    const dayMap = {};
+    // ── Stacked bar chart: daily counts by code ──
+    // Build: dayCodeMap[day][code] = count
+    const dayCodeMap = {};
     P.daily.forEach(r => {
       if (!pmFilter(r, month, base, ac, seat, region)) return;
-      dayMap[r.day] = (dayMap[r.day] || 0) + r.count;
+      if (!dayCodeMap[r.day]) dayCodeMap[r.day] = {};
+      dayCodeMap[r.day][r.code] = (dayCodeMap[r.day][r.code] || 0) + r.count;
     });
-    const days  = Object.keys(dayMap).sort();
+    const days = Object.keys(dayCodeMap).sort();
     const barLabels = days.map(d => {
       const p = d.replace('/', '-').split('-');
       return p[1] + '/' + p[2];
     });
-    const barData = days.map(d => dayMap[d]);
+
+    // Only include codes that have at least one count in this selection
+    const activeCodes = PM_CODE_ORDER.filter(code =>
+      days.some(d => (dayCodeMap[d][code] || 0) > 0)
+    );
+
+    const datasets = activeCodes.map(code => ({
+      label: code,
+      data:  days.map(d => dayCodeMap[d][code] || 0),
+      backgroundColor: (PM_CODE_COLORS[code] || { bg: 'rgba(52,211,153,.7)' }).bg,
+      borderColor:     (PM_CODE_COLORS[code] || { border: '#15803d' }).border,
+      borderWidth: 1,
+      stack: 'pm',
+    }));
 
     if (pmBarChart) pmBarChart.destroy();
     const barCtx = document.getElementById('pm-monthly-bar');
     if (barCtx) {
       pmBarChart = new Chart(barCtx, {
         type: 'bar',
-        data: {
-          labels: barLabels,
-          datasets: [{
-            label: 'Premium Trips',
-            data: barData,
-            backgroundColor: 'rgba(52,211,153,.7)',
-            borderColor: '#15803d',
-            borderWidth: 1,
-          }]
-        },
+        data: { labels: barLabels, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: {
+              display: activeCodes.length > 1,
+              position: 'bottom',
+              labels: { boxWidth: 12, font: { size: 10 } }
+            },
+            tooltip: {
+              mode: 'index', intersect: false,
+              callbacks: {
+                footer: function(items) {
+                  const total = items.reduce((s, i) => s + i.raw, 0);
+                  return total > 0 ? 'Total: ' + total.toLocaleString() : '';
+                }
+              }
+            }
+          },
           scales: {
-            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
-            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+            x: { stacked: true, ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } }
           }
         }
       });
@@ -1200,69 +1491,82 @@ function initPM(D) {
     });
     rows.sort((a, b) => b.pay_mins - a.pay_mins);
 
-    // ── Chart: x = seniority (high to low), y = flight hours ──
-    // Aggregate across bases so each pilot is one point
-    const senMap = {};
+    // ── Stacked line chart: x = seniority (high→low), stacked by Premium code ──
+    // Build senCodeMap[seniority][code] = {pm_count, mins}
+    const senCodeMap = {};
     rows.forEach(r => {
       const k = String(r.seniority);
-      if (!senMap[k]) senMap[k] = { pm: 0, mins: 0 };
-      senMap[k].pm   += r.pm_count;
-      senMap[k].mins += r.pay_mins;
+      const c = r.code || 'PM';
+      if (!senCodeMap[k])        senCodeMap[k] = {};
+      if (!senCodeMap[k][c])     senCodeMap[k][c] = { pm: 0, mins: 0 };
+      senCodeMap[k][c].pm   += r.pm_count;
+      senCodeMap[k][c].mins += r.pay_mins;
     });
-    // Sort keys numerically descending (high seniority# left), keep as strings
-    // to avoid Number(key) -> NaN round-trip bug on non-numeric seniority values
-    const senKeys = Object.keys(senMap).sort((a, b) => Number(b) - Number(a));
-    const chartPts = senKeys.map(k => {
-      const s = senMap[k];
-      return {
-        seniority: k,
-        hours: Math.round(s.mins / 60 * 10) / 10,
-        pm:    s.pm,
-        hhmm:  Math.floor(s.mins/60) + ':' + String(s.mins % 60).padStart(2,'0'),
-      };
+
+    // Sorted seniority axis — numerically descending (high number = most junior, on left)
+    const senKeys = Object.keys(senCodeMap).sort((a, b) => Number(b) - Number(a));
+
+    // Aggregate total per seniority for tooltip
+    const senTotal = {};
+    senKeys.forEach(k => {
+      senTotal[k] = PM_CODE_ORDER.reduce((s, c) =>
+        s + (senCodeMap[k][c] ? senCodeMap[k][c].pm : 0), 0);
     });
+
+    // Only include codes active in this selection
+    const activeSenCodes = PM_CODE_ORDER.filter(code =>
+      senKeys.some(k => senCodeMap[k][code] && senCodeMap[k][code].pm > 0)
+    );
+
+    const senDatasets = activeSenCodes.map(code => ({
+      label: code,
+      data:  senKeys.map(k => senCodeMap[k][code] ? senCodeMap[k][code].pm : 0),
+      borderColor:     (PM_CODE_COLORS[code] || { border: '#15803d' }).border,
+      backgroundColor: (PM_CODE_COLORS[code] || { bg: 'rgba(52,211,153,.15)' }).bg,
+      borderWidth: 1.5,
+      pointRadius: senKeys.length > 80 ? 0 : 3,
+      tension: 0.3,
+      fill: true,
+      stack: 'sen',
+    }));
 
     if (senChart) { senChart.destroy(); senChart = null; }
     const senCtx = document.getElementById('sen-chart');
     if (senCtx) {
       try {
-        if (chartPts.length) {
+        if (senKeys.length) {
           senChart = new Chart(senCtx, {
             type: 'line',
-            data: {
-              labels: chartPts.map(d => d.seniority),
-              datasets: [{
-                label: 'Premium Trips',
-                data:  chartPts.map(d => d.pm),
-                borderColor: '#34d399',
-                backgroundColor: 'rgba(52,211,153,.12)',
-                borderWidth: 1.5,
-                pointRadius: chartPts.length > 100 ? 2 : 4,
-                pointBackgroundColor: '#15803d',
-                tension: 0.3,
-                fill: true,
-              }]
-            },
+            data: { labels: senKeys, datasets: senDatasets },
             options: {
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
-                legend: { display: false },
+                legend: {
+                  display: activeSenCodes.length > 1,
+                  position: 'bottom',
+                  labels: { boxWidth: 12, font: { size: 10 } }
+                },
                 tooltip: {
+                  mode: 'index', intersect: false,
                   callbacks: {
-                    title: (items) => 'Seniority #' + chartPts[items[0].dataIndex].seniority,
-                    afterTitle: (items) => 'Pay: ' + chartPts[items[0].dataIndex].hhmm,
-                    label: (item) => 'Premium Trips: ' + item.raw,
+                    title:  (items) => 'Seniority #' + senKeys[items[0].dataIndex],
+                    footer: (items) => {
+                      const t = senTotal[senKeys[items[0].dataIndex]] || 0;
+                      return t > 0 ? 'Total: ' + t : '';
+                    },
                   }
                 }
               },
               scales: {
                 x: {
+                  stacked: true,
                   title: { display: true, text: 'Seniority Number (high to low)',
                            font: { size: 10 }, color: '#7a8aab' },
                   ticks: { font: { size: 9 }, maxTicksLimit: 20 }
                 },
                 y: {
+                  stacked: true,
                   title: { display: true, text: 'Premium Trips',
                            font: { size: 10 }, color: '#7a8aab' },
                   beginAtZero: true,
@@ -1325,7 +1629,7 @@ function initPM(D) {
     return (m < 0 ? '-' : '') + h + ':' + String(mm).padStart(2,'0');
   };
 
-  // Delta table — shows all months, filtered by Base/Aircraft/Seat/Region only
+  // Delta table — shows all months, filtered by Base/Aircraft/Seat/Division only
   function refreshDeltaTable() {
     const base = payBasSel.value, ac = payAcSel.value,
           seat = payStSel.value,  region = payRgSel.value;
@@ -1450,3 +1754,542 @@ function initPM(D) {
     }
   });
 }
+function initAPU(D) {
+  const P = D.apu_page;
+  if (!P) return;
+
+  // APU code colour palette — violet/purple family, 3 codes
+  const APU_CODE_COLORS = {
+    'AL': { bg: 'rgba(124,58,237,.80)',  border: '#7c3aed' },
+    'AH': { bg: 'rgba(167,139,250,.75)', border: '#a78bfa' },
+    'AG': { bg: 'rgba(196,181,253,.80)', border: '#c4b5fd' },
+  };
+  const APU_CODE_ORDER = ['AL','AH','AG'];
+
+  function populate(id, options, def) {
+    const sel = document.getElementById(id);
+    if (!sel) return sel;
+    options.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+    sel.value = def;
+    return sel;
+  }
+
+  const minsToHHMM = m => {
+    const h = Math.floor(Math.abs(m)/60), mm = Math.abs(m)%60;
+    return (m < 0 ? '-' : '') + h + ':' + String(mm).padStart(2,'0');
+  };
+
+  function apuFilter(r, month, base, ac, seat, region) {
+    if (r.month    !== month)                      return false;
+    if (base   !== 'All' && r.base     !== base)   return false;
+    if (ac     !== 'All' && r.aircraft !== ac)     return false;
+    if (seat   !== 'All' && r.seat     !== seat)   return false;
+    if (region !== 'All' && r.region   !== region) return false;
+    return true;
+  }
+
+  // ── 60-day sparkline (unfiltered) ─────────────────────────────
+  (function() {
+    const ctx = document.getElementById('apu-sparkline');
+    if (!ctx) return;
+    const rows = P.sparkline;
+    const MARKED = new Set([0, 3, 5]);
+    const labels = rows.map(r => {
+      if (MARKED.has(r.weekday)) {
+        const p = r.date.replace('/', '-').split('-');
+        return p[1] + '/' + p[2];
+      }
+      return '';
+    });
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: rows.map(r => r.count),
+          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(124,58,237,.12)',
+          borderWidth: 1.5,
+          pointRadius: rows.map(r => MARKED.has(r.weekday) ? 3 : 0),
+          pointBackgroundColor: rows.map(r =>
+            r.weekday === 5 ? '#c75b00' : r.weekday === 0 ? '#2563a8' : '#15803d'),
+          tension: 0.4, fill: true,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: {
+            title: items => rows[items[0].dataIndex].date.replace('/', '-'),
+            label: item  => 'APU trips: ' + item.raw.toLocaleString()
+          }}
+        },
+        scales: {
+          x: { ticks: { font: { size: 9 }, maxRotation: 0, autoSkip: false,
+            color: function(tickCtx) {
+              const lbl = labels[tickCtx.index] || '';
+              if (!lbl) return 'transparent';
+              const wd = rows[tickCtx.index] ? rows[tickCtx.index].weekday : -1;
+              return wd === 5 ? '#c75b00' : wd === 0 ? '#2563a8' : '#15803d';
+            }}, grid: { display: false }},
+          y: { display: false }
+        }
+      }
+    });
+  })();
+
+  // ─────────────────────────────────────────────────────────────────
+  // TAB 1 — Daily APU Volume
+  // ─────────────────────────────────────────────────────────────────
+  const lastMon   = P.months[P.months.length - 1] || '';
+  const apuMonSel = populate('apu-month-sel',    P.months,   lastMon);
+  const apuBasSel = populate('apu-base-sel',     P.bases,    'All');
+  const apuAcSel  = populate('apu-aircraft-sel', P.aircraft, 'All');
+  const apuStSel  = populate('apu-seat-sel',     P.seats,    'All');
+  const apuRgSel  = populate('apu-region-sel',   P.regions,  'All');
+
+  let apuBarChart = null;
+
+  function refreshAPUVolume() {
+    const month = apuMonSel.value, base = apuBasSel.value,
+          ac    = apuAcSel.value,  seat = apuStSel.value,
+          region = apuRgSel.value;
+
+    // ── Summary cards ──
+    let apuTotal = 0, otTotal = 0, pmTotal = 0, rfTotal = 0;
+    P.daily.forEach(r => {
+      if (!apuFilter(r, month, base, ac, seat, region)) return;
+      apuTotal += r.count;
+    });
+    const mcDetail = (D.monthly_cards.detail[month] || []);
+    mcDetail.forEach(r => {
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      otTotal += r.total; rfTotal += r.rf;
+    });
+    if (D.pm_page) {
+      D.pm_page.daily.forEach(r => {
+        if (!apuFilter(r, month, base, ac, seat, region)) return;
+        pmTotal += r.count;
+      });
+    }
+    document.getElementById('apu-card-total').textContent = apuTotal.toLocaleString();
+    document.getElementById('apu-card-ot').textContent    = otTotal.toLocaleString();
+    document.getElementById('apu-card-pm').textContent    = pmTotal.toLocaleString();
+    document.getElementById('apu-card-rf').textContent    = rfTotal.toLocaleString();
+    let apuFtTotal = 0;
+    if (D.ft_page) { D.ft_page.detail.forEach(r => { if (apuFilter(r, month, base, ac, seat, region)) apuFtTotal += r.count; }); }
+    const apuFtEl = document.getElementById('apu-card-ft');
+    if (apuFtEl) apuFtEl.textContent = apuFtTotal.toLocaleString();
+
+    // ── Stacked bar: daily counts by code ──
+    const dayCodeMap = {};
+    P.daily.forEach(r => {
+      if (!apuFilter(r, month, base, ac, seat, region)) return;
+      if (!dayCodeMap[r.day]) dayCodeMap[r.day] = {};
+      dayCodeMap[r.day][r.code] = (dayCodeMap[r.day][r.code] || 0) + r.count;
+    });
+    const days = Object.keys(dayCodeMap).sort();
+    const barLabels = days.map(d => {
+      const p = d.replace('/', '-').split('-');
+      return p[1] + '/' + p[2];
+    });
+    const activeCodes = APU_CODE_ORDER.filter(code =>
+      days.some(d => (dayCodeMap[d][code] || 0) > 0)
+    );
+    const datasets = activeCodes.map(code => ({
+      label: code,
+      data:  days.map(d => dayCodeMap[d][code] || 0),
+      backgroundColor: (APU_CODE_COLORS[code] || { bg: 'rgba(124,58,237,.7)' }).bg,
+      borderColor:     (APU_CODE_COLORS[code] || { border: '#7c3aed' }).border,
+      borderWidth: 1, stack: 'apu',
+    }));
+
+    if (apuBarChart) apuBarChart.destroy();
+    const barCtx = document.getElementById('apu-monthly-bar');
+    if (barCtx) {
+      apuBarChart = new Chart(barCtx, {
+        type: 'bar',
+        data: { labels: barLabels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: activeCodes.length > 1, position: 'bottom',
+                      labels: { boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              mode: 'index', intersect: false,
+              callbacks: {
+                footer: items => {
+                  const t = items.reduce((s, i) => s + i.raw, 0);
+                  return t > 0 ? 'Total: ' + t.toLocaleString() : '';
+                }
+              }
+            }
+          },
+          scales: {
+            x: { stacked: true, ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { stacked: true, beginAtZero: true, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  }
+
+  [apuMonSel, apuBasSel, apuAcSel, apuStSel, apuRgSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshAPUVolume);
+  });
+  refreshAPUVolume();
+
+  // ─────────────────────────────────────────────────────────────────
+  // TAB 2 — APU Seniority
+  // ─────────────────────────────────────────────────────────────────
+  const apusMonSel = populate('apus-month-sel',    P.months,   lastMon);
+  const apusBasSel = populate('apus-base-sel',     P.bases,    'All');
+  const apusAcSel  = populate('apus-aircraft-sel', P.aircraft, 'All');
+  const apusStSel  = populate('apus-seat-sel',     P.seats,    'All');
+  const apusRgSel  = populate('apus-region-sel',   P.regions,  'All');
+
+  let apusSenChart = null;
+
+  function refreshAPUSeniority() {
+    const month  = apusMonSel.value, base = apusBasSel.value,
+          ac     = apusAcSel.value,  seat = apusStSel.value,
+          region = apusRgSel.value;
+
+    const rows = P.seniority.filter(r => {
+      if (r.month !== month)                         return false;
+      if (base   !== 'All' && r.base     !== base)   return false;
+      if (ac     !== 'All' && r.aircraft !== ac)     return false;
+      if (seat   !== 'All' && r.seat     !== seat)   return false;
+      if (region !== 'All' && r.region   !== region) return false;
+      return true;
+    });
+
+    // ── Stacked line chart by code ──
+    const senCodeMap = {};
+    rows.forEach(r => {
+      const k = String(r.seniority);
+      const c = r.code || 'AL';
+      if (!senCodeMap[k])    senCodeMap[k] = {};
+      if (!senCodeMap[k][c]) senCodeMap[k][c] = { apu: 0, mins: 0 };
+      senCodeMap[k][c].apu  += r.apu_count;
+      senCodeMap[k][c].mins += r.pay_mins;
+    });
+    const senKeys = Object.keys(senCodeMap).sort((a, b) => Number(b) - Number(a));
+    const senTotal = {};
+    senKeys.forEach(k => {
+      senTotal[k] = APU_CODE_ORDER.reduce((s, c) =>
+        s + (senCodeMap[k][c] ? senCodeMap[k][c].apu : 0), 0);
+    });
+    const activeSenCodes = APU_CODE_ORDER.filter(code =>
+      senKeys.some(k => senCodeMap[k][code] && senCodeMap[k][code].apu > 0)
+    );
+    const senDatasets = activeSenCodes.map(code => ({
+      label: code,
+      data:  senKeys.map(k => senCodeMap[k][code] ? senCodeMap[k][code].apu : 0),
+      borderColor:     (APU_CODE_COLORS[code] || { border: '#7c3aed' }).border,
+      backgroundColor: (APU_CODE_COLORS[code] || { bg: 'rgba(124,58,237,.15)' }).bg,
+      borderWidth: 1.5,
+      pointRadius: senKeys.length > 80 ? 0 : 3,
+      tension: 0.3, fill: true, stack: 'apusen',
+    }));
+
+    if (apusSenChart) { apusSenChart.destroy(); apusSenChart = null; }
+    const senCtx = document.getElementById('apus-chart');
+    if (senCtx && senKeys.length) {
+      try {
+        apusSenChart = new Chart(senCtx, {
+          type: 'line',
+          data: { labels: senKeys, datasets: senDatasets },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: activeSenCodes.length > 1, position: 'bottom',
+                        labels: { boxWidth: 12, font: { size: 10 } } },
+              tooltip: {
+                mode: 'index', intersect: false,
+                callbacks: {
+                  title:  items => 'Seniority #' + senKeys[items[0].dataIndex],
+                  footer: items => {
+                    const t = senTotal[senKeys[items[0].dataIndex]] || 0;
+                    return t > 0 ? 'Total: ' + t : '';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { stacked: true,
+                   title: { display: true, text: 'Seniority Number (high to low)',
+                            font: { size: 10 }, color: '#7a8aab' },
+                   ticks: { font: { size: 9 }, maxTicksLimit: 20 } },
+              y: { stacked: true,
+                   title: { display: true, text: 'APU Trips',
+                            font: { size: 10 }, color: '#7a8aab' },
+                   beginAtZero: true, ticks: { font: { size: 10 }, stepSize: 1 } }
+            }
+          }
+        });
+      } catch(e) { console.error('APU seniority chart error:', e); }
+    }
+
+    // ── Table ──
+    const tbody = document.getElementById('apus-tbody');
+    const tfoot = document.getElementById('apus-tfoot');
+    if (!tbody) return;
+    const sorted = [...rows].sort((a, b) => b.apu_count - a.apu_count || a.seniority - b.seniority);
+    let totalAPU = 0, totalMins = 0;
+    let html = '';
+    sorted.forEach((r, i) => {
+      const cls = i % 2 === 1 ? ' style="background:var(--gray0)"' : '';
+      html += `<tr${cls}>
+        <td>${r.seniority}</td>
+        <td>${r.base}</td><td>${r.aircraft}</td>
+        <td>${r.seat}</td><td>${r.region}</td>
+        <td style="text-align:right">${r.apu_count.toLocaleString()}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${r.pay_hhmm}</td>
+      </tr>`;
+      totalAPU  += r.apu_count;
+      totalMins += r.pay_mins;
+    });
+    tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--gray3)">No data for selected filters</td></tr>';
+    if (tfoot) {
+      tfoot.innerHTML = `<tr class="grand-total">
+        <td colspan="5">TOTAL (${sorted.length} rows)</td>
+        <td style="text-align:right">${totalAPU.toLocaleString()}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${minsToHHMM(totalMins)}</td>
+      </tr>`;
+    }
+  }
+
+  [apusMonSel, apusBasSel, apusAcSel, apusStSel, apusRgSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshAPUSeniority);
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // TAB 3 — Monthly Change in APU
+  // ─────────────────────────────────────────────────────────────────
+  const apupMonSel = populate('apup-month-sel',    P.months,   lastMon);
+  const apupBasSel = populate('apup-base-sel',     P.bases,    'All');
+  const apupAcSel  = populate('apup-aircraft-sel', P.aircraft, 'All');
+  const apupStSel  = populate('apup-seat-sel',     P.seats,    'All');
+  const apupRgSel  = populate('apup-region-sel',   P.regions,  'All');
+
+  function refreshAPUDelta() {
+    const base = apupBasSel.value, ac = apupAcSel.value,
+          seat = apupStSel.value,  region = apupRgSel.value;
+    const months = P.months;
+    const minsByMonth = {};
+    months.forEach(mo => { minsByMonth[mo] = 0; });
+    P.pay_detail.forEach(r => {
+      if (!minsByMonth.hasOwnProperty(r.month))     return;
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      minsByMonth[r.month] += r.pay_mins;
+    });
+    const wrap = document.getElementById('apu-pay-delta-wrap');
+    if (!wrap || !months.length) return;
+    let html = `<table style="font-size:.8rem;border-collapse:collapse;min-width:480px">
+      <thead><tr>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:left">Month</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Total Hours</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Change (HH:MM)</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Change (%)</th>
+        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:center">Trend</th>
+      </tr></thead><tbody>`;
+    months.forEach((mo, i) => {
+      const cur  = minsByMonth[mo];
+      const prev = i > 0 ? minsByMonth[months[i-1]] : null;
+      const diffMins = prev !== null ? cur - prev : null;
+      const diffPct  = prev ? ((cur - prev) / prev * 100) : null;
+      const hrs  = Math.round(cur / 60 * 10) / 10;
+      const bg   = i % 2 === 1 ? 'background:var(--gray0)' : '';
+      let deltaHHMM = '—', deltaPct = '—', arrow = '—', clr = 'inherit';
+      if (diffMins !== null) {
+        deltaHHMM = (diffMins >= 0 ? '+' : '') + minsToHHMM(diffMins);
+        deltaPct  = (diffPct  >= 0 ? '+' : '') + diffPct.toFixed(1) + '%';
+        clr       = diffMins >= 0 ? '#15803d' : '#b91c1c';
+        arrow     = diffMins > 0 ? '&#9650;' : diffMins < 0 ? '&#9660;' : '&#9644;';
+      }
+      html += `<tr style="${bg}">
+        <td style="padding:5px 12px;font-family:var(--font-mono)">${mo}</td>
+        <td style="padding:5px 12px;text-align:right;font-family:var(--font-mono)">${hrs}</td>
+        <td style="padding:5px 12px;text-align:right;font-family:var(--font-mono);color:${clr}">${deltaHHMM}</td>
+        <td style="padding:5px 12px;text-align:right;color:${clr};font-weight:600">${deltaPct}</td>
+        <td style="padding:5px 12px;text-align:center;color:${clr};font-size:1rem">${arrow}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  let apupPayChart = null;
+  function refreshAPUPayFiltered() {
+    const month = apupMonSel.value, base = apupBasSel.value,
+          ac    = apupAcSel.value,  seat = apupStSel.value,
+          region = apupRgSel.value;
+    const bidMap = {};
+    P.pay_detail.forEach(r => {
+      if (r.month !== month)                         return;
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      const key = [r.base, r.aircraft, r.seat, r.region].join('/');
+      bidMap[key] = (bidMap[key] || 0) + r.pay_mins;
+    });
+    const keys = Object.keys(bidMap).sort((a, b) => bidMap[b] - bidMap[a]);
+    const data = keys.map(k => Math.round(bidMap[k] / 60 * 10) / 10);
+    if (apupPayChart) { apupPayChart.destroy(); apupPayChart = null; }
+    const ctx = document.getElementById('apu-pay-filtered-bar');
+    if (ctx) {
+      apupPayChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: keys, datasets: [{
+          label: 'APU Pay (hrs)', data,
+          backgroundColor: 'rgba(124,58,237,.70)',
+          borderColor: '#7c3aed', borderWidth: 1
+        }]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: item => item.raw + ' hrs' } }},
+          scales: {
+            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+            y: { beginAtZero: true,
+                 title: { display: true, text: 'Hours', font: { size: 10 }, color: '#7a8aab' },
+                 ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  }
+
+  [apupBasSel, apupAcSel, apupStSel, apupRgSel].forEach(s => {
+    if (s) s.addEventListener('change', () => { refreshAPUDelta(); refreshAPUPayFiltered(); });
+  });
+  if (apupMonSel) apupMonSel.addEventListener('change', refreshAPUPayFiltered);
+
+  // ── Lazy-render seniority and monthly tabs ──
+  let apusSenRendered = false, apupMonRendered = false;
+  initTabs('.tab-container', tabId => {
+    if (tabId === 'apu-tab-seniority' && !apusSenRendered) {
+      apusSenRendered = true; refreshAPUSeniority();
+    } else if (tabId === 'apu-tab-seniority') {
+      refreshAPUSeniority();
+    }
+    if (tabId === 'apu-tab-monthly' && !apupMonRendered) {
+      apupMonRendered = true; refreshAPUDelta(); refreshAPUPayFiltered();
+    } else if (tabId === 'apu-tab-monthly') {
+      refreshAPUPayFiltered();
+    }
+  });
+}
+
+function initFT(D) {
+  const P = D.ft_page;
+  if (!P) return;
+
+  function populate(id, options, def) {
+    const sel = document.getElementById(id);
+    if (!sel) return sel;
+    options.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+    sel.value = def;
+    return sel;
+  }
+
+  const FT_RED    = 'rgba(220,38,38,.75)';
+  const FT_BORDER = '#dc2626';
+
+  const lastMon  = P.months[P.months.length - 1] || '';
+  const ftMonSel = populate('ft-month-sel',    P.months,   lastMon);
+  const ftBasSel = populate('ft-base-sel',     P.bases,    'All');
+  const ftAcSel  = populate('ft-aircraft-sel', P.aircraft, 'All');
+  const ftStSel  = populate('ft-seat-sel',     P.seats,    'All');
+  const ftRgSel  = populate('ft-region-sel',   P.regions,  'All');
+
+  function ftFilter(r, month, base, ac, seat, region) {
+    if (r.month    !== month)                      return false;
+    if (base   !== 'All' && r.base     !== base)   return false;
+    if (ac     !== 'All' && r.aircraft !== ac)     return false;
+    if (seat   !== 'All' && r.seat     !== seat)   return false;
+    if (region !== 'All' && r.region   !== region) return false;
+    return true;
+  }
+
+  function refreshFT() {
+    const month  = ftMonSel.value, base = ftBasSel.value,
+          ac     = ftAcSel.value,  seat = ftStSel.value,
+          region = ftRgSel.value;
+
+    // ── Filter rows ──
+    const rows = P.detail.filter(r => ftFilter(r, month, base, ac, seat, region));
+
+    // ── Summary cards ──
+    let ftTotal = 0;
+    const seqSet = new Set();
+    rows.forEach(r => { ftTotal += r.count; seqSet.add(r.sequence); });
+
+    let otTotal = 0;
+    const mcDetail = (D.monthly_cards.detail[month] || []);
+    mcDetail.forEach(r => {
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      otTotal += r.total;
+    });
+
+    document.getElementById('ft-card-total').textContent     = ftTotal.toLocaleString();
+    document.getElementById('ft-card-sequences').textContent = seqSet.size.toLocaleString();
+    document.getElementById('ft-card-ot').textContent        = otTotal.toLocaleString();
+
+    // ── Trip detail table ─────────────────────────────────────────
+    // One row per (sequence, dep_local) pair, sorted by sequence number.
+    const tbody = document.getElementById('ft-tbody');
+    const tfoot = document.getElementById('ft-tfoot');
+    if (!tbody) return;
+
+    const sortedRows = [...rows].sort((a, b) =>
+      a.sequence.localeCompare(b.sequence, undefined, { numeric: true })
+    );
+
+    let html = '';
+    sortedRows.forEach((r, i) => {
+      const bg  = i % 2 === 1 ? ' style="background:var(--gray0)"' : '';
+      // dep_local is typically "MM/DD HH:MM" — show just MM/DD for brevity
+      const depDisplay = r.dep ? r.dep.slice(0, 5) : '—';
+      html += `<tr${bg}>
+        <td style="font-family:var(--font-mono);font-weight:600;color:${FT_BORDER}">${r.sequence}</td>
+        <td style="font-family:var(--font-mono)">${depDisplay}</td>
+        <td>${r.base}</td>
+        <td>${r.aircraft}</td>
+        <td>${r.seat}</td>
+        <td>${r.region}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center;color:var(--gray3)">No FT data for selected filters</td></tr>';
+
+    if (tfoot) {
+      tfoot.innerHTML = `<tr class="grand-total">
+        <td colspan="6">TOTAL — ${sortedRows.length} trip${sortedRows.length !== 1 ? 's' : ''}</td>
+      </tr>`;
+    }
+  }
+
+  [ftMonSel, ftBasSel, ftAcSel, ftStSel, ftRgSel].forEach(s => {
+    if (s) s.addEventListener('change', refreshFT);
+  });
+  refreshFT();
+}
+

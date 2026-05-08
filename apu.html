@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aggressive Pickup | Flight Data Stats</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header id="site-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-logo">✈</div>
+      <div class="header-titles">
+        <h1>Open Trips</h1>
+        <p>Flight Data Analysis</p>
+      </div>
+      <div class="header-meta">
+        Last scrape: <strong>2026-05-01</strong><br>
+        Page generated: 2026-05-08 02:24 UTC
+      </div>
+    </div>
+    <nav><a href="index.html">🏠 Home</a>
+<a href="daily.html">📊 Codes</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
+<a href="rf.html">🛡️ Reserve Trips</a>
+<a href="apu.html" class="active"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
+</nav>
+  </div>
+</header>
+<main>
+
+<h2 class="page-title">Aggressive Pickup Trips</h2>
+
+<div class="tab-container">
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="apu-tab-volume">Daily APU Volume</button>
+    <button class="tab-btn" data-tab="apu-tab-seniority">APU Seniority</button>
+    <button class="tab-btn" data-tab="apu-tab-monthly">Monthly Change in APU</button>
+  </div>
+
+  <!-- ── Daily APU Volume ── -->
+  <div class="tab-panel active" id="apu-tab-volume">
+
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>When &amp; how much</strong> — daily Aggressive Pickup trip counts (AL, AH, AG)
+      over the selected month. APU was implemented in April so earlier months will show
+      no data. The stacked bar chart breaks each day down by code.
+    </p>
+
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group"><label>Month</label>
+        <select id="apu-month-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Base</label>
+        <select id="apu-base-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Aircraft</label>
+        <select id="apu-aircraft-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Seat</label>
+        <select id="apu-seat-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Division</label>
+        <select id="apu-region-sel" class="ctrl-select"></select></div>
+    </div>
+
+    <div class="card-row" style="grid-template-columns:repeat(5,1fr);margin-top:14px">
+      <div class="card" style="border-top-color:#7c3aed">
+        <div class="card-label">APU Trips</div>
+        <div class="card-value" id="apu-card-total">—</div>
+        <div class="card-sub">FOS add codes = AL/AH/AG</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total Trips</div>
+        <div class="card-value" id="apu-card-ot">—</div>
+        <div class="card-sub">All codes</div>
+      </div>
+      <div class="card green">
+        <div class="card-label">Premium Trips</div>
+        <div class="card-value" id="apu-card-pm">—</div>
+        <div class="card-sub">FOS add codes = PM/OG/PR/PH/P7/HP/7P</div>
+      </div>
+      <div class="card orange">
+        <div class="card-label">Reserve Trips</div>
+        <div class="card-value" id="apu-card-rf">—</div>
+        <div class="card-sub">FOS add code = RF</div>
+      </div>
+      <div class="card" style="border-top-color:#dc2626">
+        <div class="card-label">Fatigue</div>
+        <div class="card-value" id="apu-card-ft">—</div>
+        <div class="card-sub">FOS add code = FT</div>
+      </div>
+    </div>
+
+    <h3 class="section-title">Monthly APU Activity</h3>
+    <p class="note">Daily APU trips for the selected month, stacked by code (AL, AH, AG). Hover a bar to see per-code breakdown and daily total.</p>
+    <div class="chart-box"><div style="height:260px">
+      <canvas id="apu-monthly-bar"></canvas>
+    </div></div>
+
+    <h3 class="section-title">Recent APU Activity (60 days, all bases)</h3>
+    <p class="note">60-day rolling view of total daily APU trips across all bases — unfiltered. Earlier months will be zero as APU was implemented in April.</p>
+    <div class="chart-box">
+      <div style="height:90px"><canvas id="apu-sparkline"></canvas></div>
+      <div class="note" style="margin-top:4px">
+        <span style="color:#2563a8">&#9679; Mon</span>&nbsp;&nbsp;
+        <span style="color:#15803d">&#9679; Thu</span>&nbsp;&nbsp;
+        <span style="color:#c75b00">&#9679; Sat</span>
+      </div>
+    </div>
+
+  </div><!-- /apu-tab-volume -->
+
+  <!-- ── APU Seniority ── -->
+  <div class="tab-panel" id="apu-tab-seniority">
+
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>Who &amp; how much</strong> — which seniority numbers are receiving Aggressive
+      Pickup trips in the selected month, ranked by trip count. The stacked line chart
+      breaks each seniority number down by code (AL, AH, AG).
+    </p>
+
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group"><label>Month</label>
+        <select id="apus-month-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Base</label>
+        <select id="apus-base-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Aircraft</label>
+        <select id="apus-aircraft-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Seat</label>
+        <select id="apus-seat-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Division</label>
+        <select id="apus-region-sel" class="ctrl-select"></select></div>
+    </div>
+
+    <h3 class="section-title" style="margin-top:16px">APU Trips by Seniority Number</h3>
+    <p class="note">APU trips per seniority number, plotted high-to-low and stacked by code (AL, AH, AG). Hover for per-code breakdown and total.</p>
+    <div class="chart-box" style="margin-top:8px"><div style="height:260px">
+      <canvas id="apus-chart"></canvas>
+    </div></div>
+
+    <h3 class="section-title">Pay Earned by Seniority Number</h3>
+    <p class="note">Total APU pay (HH:MM) per seniority number for the selected filters, sorted highest to lowest.</p>
+    <div class="data-table-wrap">
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Seniority</th>
+          <th style="text-align:left">Base</th>
+          <th style="text-align:left">Aircraft</th>
+          <th style="text-align:left">Seat</th>
+          <th style="text-align:left">Division</th>
+          <th>APU Trips</th>
+          <th>Pay</th>
+        </tr></thead>
+        <tbody id="apus-tbody"></tbody>
+        <tfoot id="apus-tfoot"></tfoot>
+      </table>
+    </div>
+
+  </div><!-- /apu-tab-seniority -->
+
+  <!-- ── Monthly Change in APU ── -->
+  <div class="tab-panel" id="apu-tab-monthly">
+
+    <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
+      <strong>Where &amp; how much</strong> — total APU pay hours by month and how they are
+      distributed across bid groups. Because APU was introduced in April, earlier months
+      will appear as zero — watch month-over-month growth as the program matures.
+      This view is intended for comparison with Premium trip trends over the same period.
+    </p>
+
+    <div class="filter-bar" style="margin-top:0">
+      <div class="filter-group"><label>Month</label>
+        <select id="apup-month-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Base</label>
+        <select id="apup-base-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Aircraft</label>
+        <select id="apup-aircraft-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Seat</label>
+        <select id="apup-seat-sel" class="ctrl-select"></select></div>
+      <div class="filter-group"><label>Division</label>
+        <select id="apup-region-sel" class="ctrl-select"></select></div>
+    </div>
+
+    <h3 class="section-title" style="margin-top:18px">Month-over-Month APU</h3>
+    <p class="note">Total APU hours per month with change from prior month. Base/Aircraft/Seat/Division filters apply. Green = increase, red = decrease. Months prior to April will show zero.</p>
+    <div id="apu-pay-delta-wrap" style="overflow-x:auto;margin-bottom:24px"></div>
+
+    <h3 class="section-title">Pay Distribution by Bid Group</h3>
+    <p class="note">APU hours broken down by bid group for the selected month and filters, sorted highest to lowest.</p>
+    <div class="chart-box" style="margin-top:8px"><div style="height:260px">
+      <canvas id="apu-pay-filtered-bar"></canvas>
+    </div></div>
+
+  </div><!-- /apu-tab-monthly -->
+
+</div>
+
+</main>
+<footer>
+  Open Trips Flight Data Analysis &bull;
+  <a href="index.html">Home</a>
+</footer>
+<!-- Load data FIRST, then charting library, then our code, then init -->
+<script src="data/site_data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/charts.js"></script>
+<script>
+(function() {
+  if (typeof MYOT_DATA === 'undefined') {
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
+    console.error('site_data.js did not load — MYOT_DATA is undefined.');
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js did not load from CDN.');
+    return;
+  }
+  try {
+    initAPU(MYOT_DATA);
+  } catch(e) {
+    console.error('Init error:', e);
+  }
+})();
+</script>
+</body>
+</html>

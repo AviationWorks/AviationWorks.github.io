@@ -3,15 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Prevent Safari from serving stale cached assets -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<title>Daily Open Trips Counts | Flight Data Stats</title>
-<link rel="icon" type="image/x-icon" href="favicon.ico?v=202605070211">
+<title>Codes | Flight Data Stats</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=202605070211">
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
@@ -25,58 +21,96 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-07 02:11 UTC
+        Page generated: 2026-05-08 02:24 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
-<a href="daily.html" class="active">📊 Daily Open Trips</a>
+<a href="daily.html" class="active">📊 Codes</a>
 <a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
 <a href="rf.html">🛡️ Reserve Trips</a>
+<a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
 </nav>
   </div>
 </header>
 <main>
 
-<h2 class="page-title">Daily Open Trips Row Counts</h2>
-<p class="note">Each row represents one scraped Open Trips entry. Orange cells = &gt;1.5 std deviations above mean.</p>
+<h2 class="page-title">Codes</h2>
 
-<div class="tab-container">
-  <div class="tab-bar">
-    <button class="tab-btn active" data-tab="tab-all-bases">All Bases</button>
-    <button class="tab-btn" data-tab="tab-737ca">737 CA</button>
+<p style="font-size:.82rem;color:var(--gray3);margin:4px 0 16px">
+  Unique trip count per code for the selected month and filters. Each bar represents
+  one code type. Use the filters to isolate a specific base, aircraft, seat, or division.
+  Codes with zero trips in the selected month are hidden automatically.
+</p>
+
+<div class="filter-bar">
+  <div class="filter-group">
+    <label>Month</label>
+    <select id="daily-month-sel" class="ctrl-select"></select>
   </div>
+  <div class="filter-group">
+    <label>Base</label>
+    <select id="daily-base-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Aircraft</label>
+    <select id="daily-aircraft-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Seat</label>
+    <select id="daily-seat-sel" class="ctrl-select"></select>
+  </div>
+  <div class="filter-group">
+    <label>Division</label>
+    <select id="daily-region-sel" class="ctrl-select"></select>
+  </div>
+</div>
 
-  <div class="tab-panel active" id="tab-all-bases">
-    <h3 class="section-title">All Bases (737+320, CA+FO)</h3>
-    
-<div class="chart-box" style="height:280px">
-  <h3>All Bases – Monthly Totals</h3>
-  <canvas id="daily-all-monthly-bar"></canvas>
+<div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+  <div class="card">
+    <div class="card-label">Total Trips</div>
+    <div class="card-value" id="daily-card-total">—</div>
+    <div class="card-sub">All codes</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Distinct Codes</div>
+    <div class="card-value" id="daily-card-codes">—</div>
+    <div class="card-sub">Active in selected month</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Top Code</div>
+    <div class="card-value" id="daily-card-top">—</div>
+    <div class="card-sub" id="daily-card-top-sub">Highest volume code</div>
+  </div>
 </div>
-<div class="chart-box" style="height:280px">
-  <h3>All Bases – Daily Trend</h3>
-  <canvas id="daily-all-line"></canvas>
+
+<h3 class="section-title" style="margin-top:20px">Trip Count by Code</h3>
+<p class="note">Unique trip count per code, sorted highest to lowest.
+  Bar colors: <span style="color:#c75b00;font-weight:600">orange</span>&nbsp;=&nbsp;Reserve (RF) &nbsp;
+  <span style="color:#15803d;font-weight:600">green</span>&nbsp;=&nbsp;Premium (PM/OG/PR/PH/P7/HP/7P) &nbsp;
+  <span style="color:#7c3aed;font-weight:600">purple</span>&nbsp;=&nbsp;Aggressive Pickup (AL/AH/AG) &nbsp;
+  <span style="color:#dc2626;font-weight:600">red</span>&nbsp;=&nbsp;Fatigue (FT) &nbsp;
+  <span style="color:#2563a8;font-weight:600">blue</span>&nbsp;=&nbsp;Open Trips (all other codes)</p>
+<div class="chart-box">
+  <div style="height:320px">
+    <canvas id="daily-code-bar"></canvas>
+  </div>
 </div>
+
+<h3 class="section-title">Code Detail Table</h3>
+<p class="note">Full breakdown showing count and percentage share of each code.</p>
 <div class="data-table-wrap">
   <table>
-    <thead id="daily-all-thead"></thead>
-    <tbody id="daily-all-tbody"></tbody>
+    <thead><tr>
+      <th style="text-align:left">Code</th>
+      <th style="text-align:right">Count</th>
+      <th style="text-align:right">% of Total</th>
+      <th style="text-align:left">Family</th>
+      <th style="text-align:left">Description</th>
+    </tr></thead>
+    <tbody id="daily-code-tbody"></tbody>
+    <tfoot id="daily-code-tfoot"></tfoot>
   </table>
-</div>
-
-  </div>
-
-  <div class="tab-panel" id="tab-737ca">
-    <h3 class="section-title">737 CA – by Bid Status</h3>
-    <div class="chart-box" style="height:280px">
-      <h3>737 CA – Monthly Totals by Bid Status</h3>
-      <canvas id="daily-737-monthly-bar"></canvas>
-    </div>
-    <div class="chart-box" style="height:280px">
-      <h3>737 CA – Daily Trend by Bid Status</h3>
-      <canvas id="daily-737-line"></canvas>
-    </div>
-  </div>
 </div>
 
 </main>
@@ -85,14 +119,13 @@
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->
-<!-- ?v= cache-buster ensures Safari fetches fresh files after each rebuild -->
-<script src="data/site_data.js?v=202605070211"></script>
+<script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="assets/charts.js?v=202605070211"></script>
+<script src="assets/charts.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
   if (typeof MYOT_DATA === 'undefined') {
-    document.querySelectorAll('.card-value').forEach(function(el) { el.textContent = 'No data'; });
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
     console.error('site_data.js did not load — MYOT_DATA is undefined.');
     return;
   }
@@ -105,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch(e) {
     console.error('Init error:', e);
   }
-});
+})();
 </script>
 </body>
 </html>

@@ -3,15 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Prevent Safari from serving stale cached assets -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Premium Trips | Flight Data Stats</title>
-<link rel="icon" type="image/x-icon" href="favicon.ico?v=202605070211">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=202605070211">
+<link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
@@ -25,13 +21,15 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-05-01</strong><br>
-        Page generated: 2026-05-07 02:11 UTC
+        Page generated: 2026-05-08 02:24 UTC
       </div>
     </div>
     <nav><a href="index.html">🏠 Home</a>
-<a href="daily.html">📊 Daily Open Trips</a>
+<a href="daily.html">📊 Codes</a>
 <a href="pm.html" class="active"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
 <a href="rf.html">🛡️ Reserve Trips</a>
+<a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
 </nav>
   </div>
 </header>
@@ -50,7 +48,7 @@
   <div class="tab-panel active" id="pm-tab-analysis">
 
     <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
-      <strong>When &amp; how much</strong> — daily Premium trip counts over the selected month, showing which days premium is being offered and at what volume.
+      <strong>When &amp; how much</strong> — daily Premium trip counts (PM, OG, PR, PH, P7, HP, 7P) over the selected month, showing which days premium is being offered and at what volume.
     </p>
 
     <div class="filter-bar" style="margin-top:0">
@@ -71,16 +69,16 @@
         <select id="pm-seat-sel" class="ctrl-select"></select>
       </div>
       <div class="filter-group">
-        <label>Region</label>
+        <label>Division</label>
         <select id="pm-region-sel" class="ctrl-select"></select>
       </div>
     </div>
 
-    <div class="card-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+    <div class="card-row" style="grid-template-columns:repeat(5,1fr);margin-top:14px">
       <div class="card green">
         <div class="card-label">Premium Trips</div>
         <div class="card-value" id="pm-card-total">—</div>
-        <div class="card-sub">Premium Pay</div>
+        <div class="card-sub">FOS add codes = PM/OG/PR/PH/P7/HP/7P</div>
       </div>
       <div class="card">
         <div class="card-label">Total Open Trips Rows</div>
@@ -90,12 +88,22 @@
       <div class="card orange">
         <div class="card-label">Reserve Trips</div>
         <div class="card-value" id="pm-card-rf">—</div>
-        <div class="card-sub">Reserve Usage</div>
+        <div class="card-sub">FOS add code = RF</div>
+      </div>
+      <div class="card" style="border-top-color:#7c3aed">
+        <div class="card-label">Aggressive Pickup</div>
+        <div class="card-value" id="pm-card-apu">—</div>
+        <div class="card-sub">FOS add codes = AL/AH/AG</div>
+      </div>
+      <div class="card" style="border-top-color:#dc2626">
+        <div class="card-label">Fatigue</div>
+        <div class="card-value" id="pm-card-ft">—</div>
+        <div class="card-sub">FOS add code = FT</div>
       </div>
     </div>
 
     <h3 class="section-title">Monthly Premium Activity</h3>
-    <p class="note">Shows the number of Premium trips for each day of the selected month.</p>
+    <p class="note">Shows the number of Premium trips for each day of the selected month, stacked by code (PM, OG, PR, PH, P7, HP, 7P). Hover a bar to see the per-code breakdown and daily total.</p>
     <div class="chart-box">
       <div style="height:260px">
         <canvas id="pm-monthly-bar"></canvas>
@@ -121,7 +129,7 @@
   <div class="tab-panel" id="pm-tab-seniority">
 
     <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
-      <strong>Who &amp; how much</strong> — which seniority numbers are receiving Premium trips in the selected month, ranked by the number of Premium trips in the graph below or the total pay earned in the table at the bottom.
+      <strong>Who &amp; how much</strong> — which seniority numbers are receiving Premium trips (PM, OG, PR, PH, P7, HP, 7P) in the selected month, ranked by trip count in the graph below or total pay earned in the table at the bottom.
     </p>
 
     <div class="filter-bar" style="margin-top:0">
@@ -142,13 +150,13 @@
         <select id="sen-seat-sel" class="ctrl-select"></select>
       </div>
       <div class="filter-group">
-        <label>Region</label>
+        <label>Division</label>
         <select id="sen-region-sel" class="ctrl-select"></select>
       </div>
     </div>
 
     <h3 class="section-title" style="margin-top:16px">Premium Trips by Seniority Number</h3>
-    <p class="note">Number of Premium trips per seniority number, plotted high-to-low. Hover for details.</p>
+    <p class="note">Premium trips per seniority number, plotted high-to-low and stacked by code (PM, OG, PR, PH, P7, HP, 7P). Hover for per-code breakdown and total. Hover for details.</p>
     <div class="chart-box" style="margin-top:8px">
       <div style="height:260px">
         <canvas id="sen-chart"></canvas>
@@ -164,7 +172,7 @@
           <th style="text-align:left">Base</th>
           <th style="text-align:left">Aircraft</th>
           <th style="text-align:left">Seat</th>
-          <th style="text-align:left">Region</th>
+          <th style="text-align:left">Division</th>
           <th>Premium Trips</th>
           <th>Pay</th>
         </tr></thead>
@@ -179,7 +187,7 @@
   <div class="tab-panel" id="pm-tab-pay">
 
     <p style="font-size:.82rem;color:var(--gray3);margin:10px 0 14px">
-      <strong>Where &amp; how much</strong> — total Premium hours by month across all bases, and how it is distributed across bid groups for a selected month.
+      <strong>Where &amp; how much</strong> — total Premium hours (PM, OG, PR, PH, P7, HP, 7P) by month across all bases, and how they are distributed across bid groups for a selected month.
     </p>
 
     <div class="filter-bar" style="margin-top:0">
@@ -200,13 +208,13 @@
         <select id="pay-seat-sel" class="ctrl-select"></select>
       </div>
       <div class="filter-group">
-        <label>Region</label>
+        <label>Division</label>
         <select id="pay-region-sel" class="ctrl-select"></select>
       </div>
     </div>
 
     <h3 class="section-title" style="margin-top:18px">Month-over-Month Premium</h3>
-    <p class="note">Total Premium hours per month with change from prior month. Base/Aircraft/Seat/Region filters apply. Green = increase, red = decrease.</p>
+    <p class="note">Total Premium hours per month with change from prior month. Base/Aircraft/Seat/Division filters apply. Green = increase, red = decrease.</p>
     <div id="pm-pay-delta-wrap" style="overflow-x:auto;margin-bottom:24px"></div>
 
     <h3 class="section-title">Pay Distribution by Bid Group</h3>
@@ -227,14 +235,13 @@
   <a href="index.html">Home</a>
 </footer>
 <!-- Load data FIRST, then charting library, then our code, then init -->
-<!-- ?v= cache-buster ensures Safari fetches fresh files after each rebuild -->
-<script src="data/site_data.js?v=202605070211"></script>
+<script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="assets/charts.js?v=202605070211"></script>
+<script src="assets/charts.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
   if (typeof MYOT_DATA === 'undefined') {
-    document.querySelectorAll('.card-value').forEach(function(el) { el.textContent = 'No data'; });
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
     console.error('site_data.js did not load — MYOT_DATA is undefined.');
     return;
   }
@@ -247,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
   } catch(e) {
     console.error('Init error:', e);
   }
-});
+})();
 </script>
 </body>
 </html>

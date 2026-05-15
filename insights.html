@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insights | Flight Data Stats</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header id="site-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="header-logo">✈</div>
+      <div class="header-titles">
+        <h1>Open Trips</h1>
+        <p>Flight Data Analysis</p>
+      </div>
+      <div class="header-meta">
+        Last scrape: <strong>2026-05-01</strong><br>
+        Page generated: 2026-05-14 00:32 UTC
+      </div>
+    </div>
+    <nav><a href="index.html">📈 Activity</a>
+<a href="daily.html">📊 Codes</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
+<a href="rf.html">🛡️ Reserve Trips</a>
+<a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
+<a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
+<a href="insights.html" class="active"><span style="color:#7a8aab;font-weight:900">&#128269;</span> Insights</a>
+</nav>
+  </div>
+</header>
+<main>
+
+<h2 class="page-title">Insights</h2>
+<div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+
+  <!-- sidebar -->
+  <div id="insights-index" style="min-width:220px;flex:0 0 220px">
+    <div style="font-size:.72rem;font-weight:700;color:var(--gray3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Topics</div>
+    <div id="topic-apu-vs-pm" class="insight-topic active-topic" onclick="showInsight('apu-vs-pm')"
+         style="padding:10px 14px;border-radius:var(--radius);cursor:pointer;border-left:3px solid var(--blue);background:var(--sky);margin-bottom:6px">
+      <div style="font-weight:600;font-size:.85rem;color:var(--navy)">APU Impact on Premium</div>
+      <div style="font-size:.75rem;color:var(--gray3);margin-top:2px">Does APU reduce Premium compensation? A step-by-step analysis.</div>
+    </div>
+    <div style="padding:10px 14px;border-radius:var(--radius);border-left:3px solid var(--gray1);background:var(--gray0);margin-bottom:6px;opacity:.55">
+      <div style="font-weight:600;font-size:.85rem;color:var(--gray3)">Reserve Demand Patterns</div>
+      <div style="font-size:.75rem;color:var(--gray3);margin-top:2px">Coming — needs 3+ months</div>
+    </div>
+    <div style="padding:10px 14px;border-radius:var(--radius);border-left:3px solid var(--gray1);background:var(--gray0);margin-bottom:6px;opacity:.55">
+      <div style="font-weight:600;font-size:.85rem;color:var(--gray3)">Scheduling Stress Index</div>
+      <div style="font-size:.75rem;color:var(--gray3);margin-top:2px">Coming — needs 3+ months</div>
+    </div>
+  </div>
+
+  <!-- analysis panel -->
+  <div style="flex:1;min-width:300px">
+  <div id="insight-apu-vs-pm" class="insight-panel">
+
+    <!-- headline + badges -->
+    <div id="ins-headline" style="font-size:1.0rem;font-weight:700;color:var(--navy);line-height:1.5;margin-bottom:10px">Loading…</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+      <span id="ins-status-badge"     style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:12px"></span>
+      <span id="ins-confidence-badge" style="font-size:.72rem;padding:3px 10px;border-radius:12px;background:var(--gray1);color:var(--gray4)"></span>
+      <span id="ins-generated"        style="font-size:.72rem;color:var(--gray3);margin-left:4px"></span>
+    </div>
+
+    <!-- STEP 1 -->
+    <h3 class="section-title">Step 1 — The Raw Data</h3>
+    <p class="note">Total Trip, Reserve, Premium, and APU Trip counts by month. The APU launch month is highlighted.</p>
+    <div style="overflow-x:auto;margin-bottom:8px">
+      <table style="font-size:.8rem;border-collapse:collapse;width:100%">
+        <thead id="s1-thead"></thead><tbody id="s1-tbody"></tbody>
+      </table>
+    </div>
+    <p class="note" id="s1-obs" style="margin-top:16px"></p>
+
+    <!-- STEP 2 -->
+    <h3 class="section-title">Step 2 — Premium as a Share of Total Trips</h3>
+    <p class="note">We calculate <strong>Premium Rate</strong> — Premium trips as a percentage of
+      all trips that month. This strips out scheduling volume: if April simply had fewer flights
+      overall, Total Trips, Reserve, and Premium trip counts should shrink proportionally and the <em>rate</em> should hold steady.
+      A falling rate means Premium shrank faster than the schedule.</p>
+    <div style="overflow-x:auto;margin-bottom:8px">
+      <table style="font-size:.8rem;border-collapse:collapse;width:100%">
+        <thead id="s2-thead"></thead><tbody id="s2-tbody"></tbody>
+      </table>
+    </div>
+    <p class="note" id="s2-obs" style="margin-top:16px"></p>
+
+    <!-- STEP 3 -->
+    <h3 class="section-title">Step 3 — Reserve as a Share of Total Trips</h3>
+    <p class="note">We run the same analysis for Reserve trips. Reserve usage is our best proxy
+      for <strong>operational stress</strong> — when the schedule is disrupted, Reserve climbs;
+      when operations run smoothly, it falls.
+      If Reserve also fell as a rate in April, it tells us the month was genuinely less demanding
+      and some Premium reduction is expected. The critical question is: by how much, and did
+      Premium fall proportionally?</p>
+    <div style="overflow-x:auto;margin-bottom:8px">
+      <table style="font-size:.8rem;border-collapse:collapse;width:100%">
+        <thead id="s3-thead"></thead><tbody id="s3-tbody"></tbody>
+      </table>
+    </div>
+    <p class="note" id="s3-obs" style="margin-top:16px"></p>
+
+    <!-- STEP 4 — so-what comparison + pies -->
+    <h3 class="section-title">Step 4 — How Much Did Each Rate Really Change?</h3>
+    <p class="note" style="margin-top:12px">In the pie charts below you can see the slight (-13.8%) reduction in Reserve slice (orange) compared to the much more noticeable (45.8%) reduction in Premium slice (green). Each chart shows the absolute trip count along with each slice's percentage share.</p>
+    <div id="ins-pies" style="display:flex;flex-wrap:wrap;gap:24px;margin-bottom:8px;align-items:flex-start"></div>
+    <p class="note" id="s4p-obs" style="margin-top:4px"></p>
+
+    <!-- STEP 5 — Expected vs Actual: Method A -->
+    <h3 class="section-title">Step 5 — Expected vs Actual: Volume Model</h3>
+    <p class="note">We now quantify the gap. The <strong>Volume Model</strong> asks: if April had
+      simply maintained March's Premium rate, how many Premium trips would we expect?
+      This is the most straightforward baseline — it assumes the months are operationally
+      identical except for total trip count.</p>
+    <div id="s5a-wrap" style="margin-bottom:8px"></div>
+    <p class="note" id="s5a-obs"></p>
+
+    <!-- STEP 6 — Expected vs Actual: Method B -->
+    <h3 class="section-title">Step 6 — Expected vs Actual: Reserve-Normalised Model</h3>
+    <p class="note">The Volume Model doesn't account for the fact that April was genuinely less
+      demanding (Reserve fell too). The <strong>Reserve-Normalised Model</strong> gives April
+      credit for being a quieter month: it scales the March Premium count by the same factor
+      that Reserve changed, then computes the remaining unexplained shortfall.
+      This is the more conservative approach — it minimises the portion attributed to APU.</p>
+    <div id="s6b-wrap" style="margin-bottom:8px"></div>
+    <p class="note" id="s6b-obs"></p>
+
+    <!-- Model selection -->
+    <div id="s6-select-wrap"
+         style="margin:16px 0 24px;padding:14px 16px;border-radius:var(--radius);
+                background:#f0fdf4;border-left:4px solid #15803d">
+      <div style="font-size:.72rem;font-weight:700;color:#15803d;letter-spacing:.06em;
+                  text-transform:uppercase;margin-bottom:6px">&#10003; Selected Model</div>
+      <p id="s6-select-text" style="font-size:.82rem;color:var(--gray4);line-height:1.7;margin:0"></p>
+    </div>
+
+    <!-- STEP 7a — Pay hours raw change -->
+    <h3 class="section-title">Step 7 — Premium Pay Hours: Raw Change</h3>
+    <p class="note">Trip counts tell us how many events occurred. Pay hours tell us the
+      financial magnitude. We first look at the raw change in Premium pay hours month over month,
+      before any adjustment for operational stress.</p>
+    <div id="s7a-wrap" style="margin-bottom:8px"></div>
+    <p class="note" id="s7a-obs"></p>
+
+    <!-- STEP 7b — Stress adjustment -->
+    <h3 class="section-title">Step 8 — Pay Hours: Operational Stress Adjustment</h3>
+    <p class="note">Not all of the pay-hours decline is attributable to APU — some reflects
+      April genuinely being a quieter month. The table below applies two scaling methods
+      side by side to isolate the portion of the pay shortfall that <em>cannot</em> be
+      explained by lower operational demand. We select the more conservative result.</p>
+    <div id="s7b-wrap" style="margin-bottom:8px"></div>
+    <p class="note" id="s7b-obs"></p>
+
+    <!-- STEP 8 — Financial impact -->
+    <h3 class="section-title">Step 9 — Financial Impact Estimate</h3>
+    <p class="note">Having established (Step 6) that APU trips fall within the conservative
+      Premium shortfall, we attribute the APU pay hours directly to displaced Premium.
+      Premium pay is calculated at 50% above the base hourly rate of
+      <strong>$250/hr</strong>, making the incremental value
+      <strong>$125 per hour</strong> above base.
+      APU hours are capped at the stress-adjusted pay shortfall (Step 8) if they exceed it.</p>
+    <div id="s8-wrap" style="margin-bottom:24px"></div>
+
+    <!-- caveats -->
+    <div style="padding:14px 16px;background:var(--gray0);border-radius:var(--radius);border-left:3px solid var(--gray2)">
+      <div style="font-size:.72rem;font-weight:700;color:var(--gray3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Methodology &amp; limitations</div>
+      <ul id="ins-caveats" style="font-size:.78rem;color:var(--gray3);margin:0;padding-left:16px;line-height:1.9"></ul>
+    </div>
+
+  </div><!-- /insight-apu-vs-pm -->
+  </div><!-- /analysis panel -->
+</div>
+
+</main>
+<footer>
+  Open Trips Flight Data Analysis &bull;
+  <a href="index.html">Activity</a>
+  &bull; If you have input, recommendations, or questions please email: <a href="mailto:kevin321do@proton.me">kevin321do@proton.me</a>
+</footer>
+<!-- Load data FIRST, then charting library, then our code, then init -->
+<script src="data/site_data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/charts.js"></script>
+<script>
+(function() {
+  if (typeof MYOT_DATA === 'undefined') {
+    document.querySelectorAll('.card-value').forEach(el => el.textContent = 'No data');
+    console.error('site_data.js did not load — MYOT_DATA is undefined.');
+    return;
+  }
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js did not load from CDN.');
+    return;
+  }
+  try {
+    initInsights(MYOT_DATA);
+  } catch(e) {
+    console.error('Init error:', e);
+  }
+})();
+</script>
+</body>
+</html>

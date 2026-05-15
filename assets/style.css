@@ -20,6 +20,22 @@
   --radius: 4px;
   --shadow: 0 1px 3px rgba(0,0,0,.12);
 }
+/* ── Insights page ──────────────────────────────── */
+.insight-topic {
+  transition: background .15s, border-color .15s;
+}
+.insight-topic:hover {
+  background: var(--sky) !important;
+  border-left-color: var(--blue) !important;
+  opacity: 1 !important;
+}
+.insight-panel { display: none; }
+.insight-panel.active { display: block; }
+.ins-badge-positive     { background: #d1fae5; color: #065f46; }
+.ins-badge-negative     { background: #fee2e2; color: #7f1d1d; }
+.ins-badge-neutral      { background: #e0e7ff; color: #1e3a8a; }
+.ins-badge-inconclusive { background: var(--gray1); color: var(--gray4); }
+
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 

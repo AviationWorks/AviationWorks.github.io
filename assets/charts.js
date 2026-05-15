@@ -250,17 +250,28 @@ function makeRecentBar(D, month, base, aircraft, seat, region) {
 
 /* ── Monthly summary cards with 4 filter dropdowns ── */
 function updateCards(D, month, base, aircraft, seat, region) {
+  // total: deduplicated via COUNT(DISTINCT seq|dep) in q_monthly_detail
   const detail = (D.monthly_cards.detail[month] || []);
-  let total = 0, rf = 0;
+  let total = 0;
   detail.forEach(r => {
     if (base     !== 'All' && r.base     !== base)     return;
     if (aircraft !== 'All' && r.aircraft !== aircraft) return;
     if (seat     !== 'All' && r.seat     !== seat)     return;
     if (region   !== 'All' && r.region   !== region)   return;
-    total += r.total; rf += r.rf;
+    total += r.total;
   });
-  // PM, APU, FT: use deduplicated counts from their page.daily arrays
-  let pm = 0, apu = 0, ft = 0;
+  // RF, PM, APU, FT: all from deduplicated page.daily arrays
+  let rf = 0, pm = 0, apu = 0, ft = 0;
+  if (D.rf_page) {
+    D.rf_page.daily.forEach(r => {
+      if (r.month    !== month)                          return;
+      if (base     !== 'All' && r.base     !== base)     return;
+      if (aircraft !== 'All' && r.aircraft !== aircraft) return;
+      if (seat     !== 'All' && r.seat     !== seat)     return;
+      if (region   !== 'All' && r.region   !== region)   return;
+      rf += r.count;
+    });
+  }
   if (D.pm_page) {
     D.pm_page.daily.forEach(r => {
       if (r.month    !== month)                          return;
@@ -1140,6 +1151,8 @@ function initRF(D) {
     const base = rfpBasSel.value, ac = rfpAcSel.value,
           seat = rfpStSel.value,  region = rfpRgSel.value;
     const months = P.months;
+
+    // Aggregate pay hours per month (from pay_detail)
     const minsByMonth = {};
     months.forEach(mo => { minsByMonth[mo] = 0; });
     P.pay_detail.forEach(r => {
@@ -1151,45 +1164,85 @@ function initRF(D) {
       minsByMonth[r.month] += r.pay_mins;
     });
 
-    // Std dev across all months to flag unusually high months
+    // Aggregate trip counts per month (from daily, deduplicated)
+    const tripsByMonth = {};
+    months.forEach(mo => { tripsByMonth[mo] = 0; });
+    P.daily.forEach(r => {
+      if (!tripsByMonth.hasOwnProperty(r.month))    return;
+      if (base   !== 'All' && r.base     !== base)   return;
+      if (ac     !== 'All' && r.aircraft !== ac)     return;
+      if (seat   !== 'All' && r.seat     !== seat)   return;
+      if (region !== 'All' && r.region   !== region) return;
+      tripsByMonth[r.month] += r.count;
+    });
+
+    // Std dev on hours to flag high-demand months
     const monthVals = months.map(mo => minsByMonth[mo]);
     const { threshold: moThreshold } = stdDevStats(monthVals.filter(v => v > 0));
 
     const wrap = document.getElementById('rf-pay-delta-wrap');
     if (!wrap || !months.length) return;
-    let html = `<table style="font-size:.8rem;border-collapse:collapse;min-width:520px">
-      <thead><tr>
-        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:left">Month</th>
-        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Total Hours</th>
-        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Change (HH:MM)</th>
-        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:right">Change (%)</th>
-        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:center">Trend</th>
-        <th style="background:var(--navy);color:#fff;padding:6px 12px;text-align:center">Demand</th>
-      </tr></thead><tbody>`;
+    let html = `<table style="font-size:.8rem;border-collapse:collapse;min-width:760px">
+      <thead>
+        <tr>
+          <th rowspan="2" style="background:var(--navy);color:#fff;padding:6px 12px;text-align:left;vertical-align:middle">Month</th>
+          <th colspan="4" style="background:var(--navy);color:#fff;padding:4px 12px;text-align:center;border-bottom:1px solid rgba(255,255,255,.2)">Reserve Trips</th>
+          <th colspan="4" style="background:#0f2a42;color:#fff;padding:4px 12px;text-align:center;border-bottom:1px solid rgba(255,255,255,.2)">Reserve Hours</th>
+          <th rowspan="2" style="background:var(--navy);color:#fff;padding:6px 12px;text-align:center;vertical-align:middle">Demand</th>
+        </tr>
+        <tr>
+          <th style="background:var(--navy);color:#cbd5e0;padding:4px 10px;text-align:right;font-weight:400">Trips</th>
+          <th style="background:var(--navy);color:#cbd5e0;padding:4px 10px;text-align:right;font-weight:400">Change</th>
+          <th style="background:var(--navy);color:#cbd5e0;padding:4px 10px;text-align:right;font-weight:400">%</th>
+          <th style="background:var(--navy);color:#cbd5e0;padding:4px 10px;text-align:center;font-weight:400">Trend</th>
+          <th style="background:#0f2a42;color:#cbd5e0;padding:4px 10px;text-align:right;font-weight:400">Hours</th>
+          <th style="background:#0f2a42;color:#cbd5e0;padding:4px 10px;text-align:right;font-weight:400">Change</th>
+          <th style="background:#0f2a42;color:#cbd5e0;padding:4px 10px;text-align:right;font-weight:400">%</th>
+          <th style="background:#0f2a42;color:#cbd5e0;padding:4px 10px;text-align:center;font-weight:400">Trend</th>
+        </tr>
+      </thead><tbody>`;
     months.forEach((mo, i) => {
-      const cur  = minsByMonth[mo];
-      const prev = i > 0 ? minsByMonth[months[i-1]] : null;
-      const diffMins = prev !== null ? cur - prev : null;
-      const diffPct  = prev ? ((cur - prev) / prev * 100) : null;
-      const hrs  = Math.round(cur / 60 * 10) / 10;
-      const bg   = i % 2 === 1 ? 'background:var(--gray0)' : '';
-      const isHighDemand = isFinite(moThreshold) && cur > moThreshold;
-      let deltaHHMM = '—', deltaPct = '—', arrow = '—', deltaColor = 'inherit';
-      if (diffMins !== null) {
-        deltaHHMM  = (diffMins >= 0 ? '+' : '') + minsToHHMM(diffMins);
-        deltaPct   = (diffPct  >= 0 ? '+' : '') + diffPct.toFixed(1) + '%';
-        deltaColor = diffMins >= 0 ? '#15803d' : '#b91c1c';
-        arrow      = diffMins > 0 ? '&#9650;' : diffMins < 0 ? '&#9660;' : '&#9644;';
+      // ── Trip count deltas ──
+      const trips     = tripsByMonth[mo];
+      const prevTrips = i > 0 ? tripsByMonth[months[i-1]] : null;
+      const diffTrips = prevTrips !== null ? trips - prevTrips : null;
+      const pctTrips  = (prevTrips && prevTrips > 0) ? ((trips - prevTrips) / prevTrips * 100) : null;
+      let dtFmt = '—', dtPct = '—', dtArrow = '—', dtColor = 'inherit';
+      if (diffTrips !== null) {
+        dtFmt   = (diffTrips >= 0 ? '+' : '') + diffTrips.toLocaleString();
+        dtPct   = (pctTrips  >= 0 ? '+' : '') + pctTrips.toFixed(1) + '%';
+        dtColor = diffTrips > 0 ? '#15803d' : diffTrips < 0 ? '#b91c1c' : 'inherit';
+        dtArrow = diffTrips > 0 ? '&#9650;' : diffTrips < 0 ? '&#9660;' : '&#9644;';
       }
-      const demandBadge = isHighDemand
-        ? '<span class="tag-outlier">&#9888; High</span>' : '';
+
+      // ── Hours deltas ──
+      const cur      = minsByMonth[mo];
+      const prev     = i > 0 ? minsByMonth[months[i-1]] : null;
+      const diffMins = prev !== null ? cur - prev : null;
+      const diffPct  = (prev && prev > 0) ? ((cur - prev) / prev * 100) : null;
+      const hrs      = Math.round(cur / 60 * 10) / 10;
+      const isHighDemand = isFinite(moThreshold) && cur > moThreshold;
+      let dhFmt = '—', dhPct = '—', dhArrow = '—', dhColor = 'inherit';
+      if (diffMins !== null) {
+        dhFmt   = (diffMins >= 0 ? '+' : '') + minsToHHMM(diffMins);
+        dhPct   = (diffPct  >= 0 ? '+' : '') + diffPct.toFixed(1) + '%';
+        dhColor = diffMins > 0 ? '#15803d' : diffMins < 0 ? '#b91c1c' : 'inherit';
+        dhArrow = diffMins > 0 ? '&#9650;' : diffMins < 0 ? '&#9660;' : '&#9644;';
+      }
+
+      const bg = i % 2 === 1 ? 'background:var(--gray0)' : '';
+      const demandBadge = isHighDemand ? '<span class="tag-outlier">&#9888; High</span>' : '';
       html += `<tr style="${bg}">
         <td style="padding:5px 12px;font-family:var(--font-mono)">${mo}</td>
-        <td style="padding:5px 12px;text-align:right;font-family:var(--font-mono)${isHighDemand ? ';font-weight:700;color:#c75b00' : ''}">${hrs}</td>
-        <td style="padding:5px 12px;text-align:right;font-family:var(--font-mono);color:${deltaColor}">${deltaHHMM}</td>
-        <td style="padding:5px 12px;text-align:right;color:${deltaColor};font-weight:600">${deltaPct}</td>
-        <td style="padding:5px 12px;text-align:center;color:${deltaColor};font-size:1rem">${arrow}</td>
-        <td style="padding:5px 12px;text-align:center">${demandBadge}</td>
+        <td style="padding:5px 10px;text-align:right">${trips.toLocaleString()}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);color:${dtColor}">${dtFmt}</td>
+        <td style="padding:5px 10px;text-align:right;color:${dtColor};font-weight:600">${dtPct}</td>
+        <td style="padding:5px 10px;text-align:center;color:${dtColor};font-size:1rem">${dtArrow}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)${isHighDemand ? ';font-weight:700;color:#c75b00' : ''}">${hrs}</td>
+        <td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);color:${dhColor}">${dhFmt}</td>
+        <td style="padding:5px 10px;text-align:right;color:${dhColor};font-weight:600">${dhPct}</td>
+        <td style="padding:5px 10px;text-align:center;color:${dhColor};font-size:1rem">${dhArrow}</td>
+        <td style="padding:5px 10px;text-align:center">${demandBadge}</td>
       </tr>`;
     });
     html += '</tbody></table>';
@@ -1242,7 +1295,7 @@ function initRF(D) {
   [rfpBasSel, rfpAcSel, rfpStSel, rfpRgSel].forEach(s => {
     if (s) s.addEventListener('change', () => { refreshRFDeltaTable(); refreshRFPayFiltered(); });
   });
-  if (rfpMonSel) rfpMonSel.addEventListener('change', refreshRFPayFiltered);
+  if (rfpMonSel) rfpMonSel.addEventListener('change', () => { refreshRFDeltaTable(); refreshRFPayFiltered(); });
 
   // ── Wire tabs — lazy-render seniority and monthly tabs ──
   let rfsSenRendered = false, rfpMonRendered = false;
@@ -1383,8 +1436,15 @@ function initPM(D) {
       if (ac     !== 'All' && r.aircraft !== ac)     return;
       if (seat   !== 'All' && r.seat     !== seat)   return;
       if (region !== 'All' && r.region   !== region) return;
-      otTotal += r.total; rfTotal += r.rf;
+      otTotal += r.total;
     });
+    // RF from deduplicated rf_page.daily
+    if (D.rf_page) {
+      D.rf_page.daily.forEach(r => {
+        if (!pmFilter(r, month, base, ac, seat, region)) return;
+        rfTotal += r.count;
+      });
+    }
     if (D.apu_page) {
       D.apu_page.daily.forEach(r => {
         if (!pmFilter(r, month, base, ac, seat, region)) return;
@@ -1871,8 +1931,15 @@ function initAPU(D) {
       if (ac     !== 'All' && r.aircraft !== ac)     return;
       if (seat   !== 'All' && r.seat     !== seat)   return;
       if (region !== 'All' && r.region   !== region) return;
-      otTotal += r.total; rfTotal += r.rf;
+      otTotal += r.total;
     });
+    // RF from deduplicated rf_page.daily
+    if (D.rf_page) {
+      D.rf_page.daily.forEach(r => {
+        if (!apuFilter(r, month, base, ac, seat, region)) return;
+        rfTotal += r.count;
+      });
+    }
     if (D.pm_page) {
       D.pm_page.daily.forEach(r => {
         if (!apuFilter(r, month, base, ac, seat, region)) return;
@@ -2292,4 +2359,433 @@ function initFT(D) {
   });
   refreshFT();
 }
+
+/* ── Insights page ─────────────────────────────────────────────── */
+function showInsight(id) {
+  document.querySelectorAll('.insight-panel').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.insight-topic').forEach(function(t) {
+    t.style.background    = 'var(--gray0)';
+    t.style.borderColor   = 'var(--gray1)';
+    t.style.opacity       = '0.55';
+  });
+  var panel = document.getElementById('insight-' + id);
+  if (panel) panel.classList.add('active');
+  var topic = document.getElementById('topic-' + id);
+  if (topic) {
+    topic.style.background  = 'var(--sky)';
+    topic.style.borderColor = 'var(--blue)';
+    topic.style.opacity     = '1';
+  }
+}
+
+function initInsights(D) {
+  var fp = document.querySelector('.insight-panel');
+  if (fp) fp.classList.add('active');
+  var INS = D.insights; if (!INS) return;
+  var ins = INS['apu_vs_pm']; if (!ins) return;
+
+  // ── badges ────────────────────────────────────────────────────
+  var el = function(id){ return document.getElementById(id); };
+  if (el('ins-headline')) el('ins-headline').textContent = ins.headline || '—';
+  var SL = {positive:'✓ Positive',negative:'⚠ Negative',neutral:'→ Neutral',inconclusive:'? Inconclusive'};
+  if (el('ins-status-badge')){
+    el('ins-status-badge').textContent = SL[ins.status]||ins.status;
+    el('ins-status-badge').className   = 'ins-badge-'+(ins.status||'inconclusive');
+  }
+  var CC={high:'#15803d',moderate:'#b45309',low:'#c75b00',insufficient_data:'#7a8aab',inconclusive:'#7a8aab'};
+  var CL={high:'● High confidence',moderate:'● Moderate confidence',low:'● Low confidence',
+          insufficient_data:'● Insufficient data',inconclusive:'● Inconclusive'};
+  if (el('ins-confidence-badge')){
+    el('ins-confidence-badge').textContent=CL[ins.confidence]||ins.confidence;
+    el('ins-confidence-badge').style.color=CC[ins.confidence]||'var(--gray3)';
+  }
+  if (el('ins-generated')&&INS._meta) el('ins-generated').textContent='Computed '+INS._meta.generated_at;
+  if (el('ins-caveats')&&ins.caveats)
+    el('ins-caveats').innerHTML=ins.caveats.map(function(c){return '<li>'+c+'</li>';}).join('');
+
+  // ── helpers ───────────────────────────────────────────────────
+  var N  = function(v){ return (v!=null)?v.toLocaleString():'—'; };
+  var P  = function(v,d){ if(v==null) return '—'; d=d||1;
+             return (v>=0?'+':'')+v.toFixed(d)+'%'; };
+  var S  = function(v){ if(v==null) return '—';
+             return (v>=0?'+':'')+Math.round(v).toLocaleString(); };
+  var HR = function(h){ // hours (decimal) → H:MM
+    if(h==null||h===0) return '0:00';
+    var neg=h<0; h=Math.abs(h);
+    var hh=Math.floor(h), mm=Math.round((h-hh)*60);
+    return (neg?'-':'')+hh+':'+(mm<10?'0':'')+mm;
+  };
+  var clr = function(v){
+    if(!v) return ''; return v>0?'color:#15803d':'color:#b91c1c';
+  };
+  var NAVY='var(--navy)';
+  var TH = function(t,a,bg,fg,x){
+    bg=bg||NAVY;fg=fg||'#fff';a=a||'right';x=x||'';
+    return '<th style="background:'+bg+';color:'+fg+';padding:5px 10px;'
+          +'text-align:'+a+';white-space:nowrap;'+x+'">'+t+'</th>';
+  };
+  var TD = function(v,s){ s=s||''; return '<td style="padding:5px 10px;'+s+'">'+v+'</td>'; };
+  var APU_B='<span style="font-size:.62rem;font-weight:700;background:#7c3aed;color:#fff;'
+    +'padding:1px 5px;border-radius:3px;margin-left:5px">APU Launch</span>';
+  var SEL_B='<span style="font-size:.62rem;font-weight:700;background:#15803d;color:#fff;'
+    +'padding:1px 6px;border-radius:3px;margin-left:6px">Selected</span>';
+
+  var rowBg = function(r,i){
+    return r.is_apu
+      ? 'background:#f5f0ff;outline:2px solid rgba(124,58,237,.3);outline-offset:-2px'
+      : i%2?'background:var(--gray0)':'';
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 1 — Raw data
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var th=el('s1-thead'),tb=el('s1-tbody'),obs=el('s1-obs');
+    if(!th||!tb||!ins.act1_rows) return;
+    th.innerHTML='<tr>'+TH('Month','left')
+      +TH('Total Trips')+TH('Reserve','right',NAVY,'#fbd38d')
+      +TH('Premium','right',NAVY,'#9ae6b4')+TH('APU','right',NAVY,'#d9b8ff')
+      +TH('Other')+'</tr>';
+    var html='';
+    ins.act1_rows.forEach(function(r,i){
+      html+='<tr style="'+rowBg(r,i)+'">'
+        +TD(r.month+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(N(r.total))+TD(N(r.rf),'color:#b45309')+TD(N(r.pm),'color:#15803d')
+        +TD(N(r.apu),'color:#7c3aed')+TD(N(r.other),'color:var(--gray3)')+'</tr>';
+    });
+    tb.innerHTML=html;
+    if(obs){
+      var aRow=ins.act1_rows.find(function(r){return r.is_apu;});
+      var bRow=ins.act1_rows.find(function(r){return !r.is_apu;});
+      if(aRow&&bRow) obs.textContent=
+        'Premium fell from '+N(bRow.pm)+' to '+N(aRow.pm)+' in the APU launch month. '
+        +'APU contributed '+N(aRow.apu)+' trips that did not exist the prior month. '
+        +'But did Premium simply fall because April was a quieter month? The next steps investigate.';
+    }
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 2 — Premium rate
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var th=el('s2-thead'),tb=el('s2-tbody'),obs=el('s2-obs');
+    if(!th||!tb||!ins.act2_rows) return;
+    th.innerHTML='<tr>'+TH('Month','left')
+      +TH('Total Trips')+TH('Premium Trips','right',NAVY,'#9ae6b4')
+      +TH('MoM Change')+TH('MoM %')
+      +TH('PM Rate','right',NAVY,'#9ae6b4')+'</tr>';
+    var html=''; var kRow=null;
+    ins.act2_rows.forEach(function(r,i){
+      html+='<tr style="'+rowBg(r,i)+'">'
+        +TD(r.month+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(N(r.total))+TD(N(r.pm),'color:#15803d')
+        +TD(S(r.pm_chg),'font-family:var(--font-mono);'+clr(r.pm_chg))
+        +TD(P(r.pm_chg_pct),clr(r.pm_chg_pct))
+        +TD((r.pm_rate||0).toFixed(2)+'%','font-weight:700;color:#15803d')+'</tr>';
+      if(r.is_apu) kRow=r;
+    });
+    tb.innerHTML=html;
+    if(obs&&kRow) obs.textContent=
+      'Premium’s share of total trips fell 45.8% and the rate fell from 5.92% in 2026-03 to 3.36% in 2026-04. '
+      +'This means Premium lost more than just the trips lost due to a quieter schedule. '
+      +'Let’s compare it to the change in Reserve usage.';
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 3 — Reserve rate
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var th=el('s3-thead'),tb=el('s3-tbody'),obs=el('s3-obs');
+    if(!th||!tb||!ins.act3_rows) return;
+    th.innerHTML='<tr>'+TH('Month','left')
+      +TH('Total Trips')+TH('Reserve Trips','right',NAVY,'#fbd38d')
+      +TH('MoM Change')+TH('MoM %')
+      +TH('RF Rate','right',NAVY,'#fbd38d')+'</tr>';
+    var html=''; var kRow=null;
+    ins.act3_rows.forEach(function(r,i){
+      html+='<tr style="'+rowBg(r,i)+'">'
+        +TD(r.month+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(N(r.total))+TD(N(r.rf),'color:#b45309')
+        +TD(S(r.rf_chg),'font-family:var(--font-mono);'+clr(r.rf_chg))
+        +TD(P(r.rf_chg_pct),clr(r.rf_chg_pct))
+        +TD((r.rf_rate||0).toFixed(2)+'%','font-weight:700;color:#b45309')+'</tr>';
+      if(r.is_apu) kRow=r;
+    });
+    tb.innerHTML=html;
+    if(obs&&kRow) obs.textContent=
+      'Reserve also fell in 2026-04, but only with a month over month decline of 13.8%. '
+      +'The rate fell from 28.44% to 25.71%. '
+      +'This confirms April was genuinely less operationally demanding, '
+      +'so some Premium reduction is expected. '
+      +'The next step compares the two relative changes directly.';
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 4 — So-what comparison table + pies
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var th=el('s4c-thead'),tb=el('s4c-tbody'),obs=el('s4c-obs');
+    if(!th||!tb||!ins.act4_compare) return;
+    th.innerHTML='<tr>'
+      +TH('Period','left')
+      +TH('Reserve Pre','right','#5c2d00','#fde68a')
+      +TH('Reserve Post','right','#5c2d00','#fde68a')
+      +TH('RF Rel. Change','right','#5c2d00','#fde68a')
+      +TH('Premium Pre','right','#063020','#bbf7d0','border-left:2px solid rgba(255,255,255,.2)')
+      +TH('Premium Post','right','#063020','#bbf7d0')
+      +TH('PM Rel. Change','right','#063020','#bbf7d0')
+      +'</tr>';
+    var html=''; var kRow=null;
+    ins.act4_compare.forEach(function(r,i){
+      var bg=r.is_apu?'background:#f5f0ff;outline:2px solid rgba(124,58,237,.3);outline-offset:-2px':i%2?'background:var(--gray0)':'';
+      html+='<tr style="'+bg+'">'
+        +TD(r.pre_mo+' → '+r.post_mo+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-size:.76rem')
+        +TD(r.rf_rate_pre.toFixed(2)+'%','color:#b45309')
+        +TD(r.rf_rate_post.toFixed(2)+'%','color:#b45309')
+        +TD(P(r.rf_rel,1),'font-weight:700;'+clr(r.rf_rel))
+        +TD(r.pm_rate_pre.toFixed(2)+'%','color:#15803d;border-left:2px solid var(--gray1)')
+        +TD(r.pm_rate_post.toFixed(2)+'%','color:#15803d')
+        +TD(P(r.pm_rel,1),'font-weight:700;'+clr(r.pm_rel))+'</tr>';
+      if(r.is_apu) kRow=r;
+    });
+    tb.innerHTML=html;
+    if(obs&&kRow){
+      var rfR=kRow.rf_rel||0, pmR=kRow.pm_rel||0;
+      var multiple=(pmR!=0&&rfR!=0)?Math.abs(pmR/rfR).toFixed(1):null;
+      obs.textContent=
+        'Reserve’s share of total trips changed '+P(rfR,1)+' relative to its prior-month rate. '
+        +'Premium’s share changed '+P(pmR,1)+' — '
+        +(multiple?multiple+'× the Reserve change. ':'significantly more. ')
+        +'Volume alone cannot explain this gap. '
+        +'Something materially changed in how open trips were covered in '+kRow.post_mo+'.';
+    }
+  })();
+
+  // ── Pie charts ────────────────────────────────────────────────
+  (function(){
+    var wrap=el('ins-pies'),obs=el('s4p-obs');
+    if(!wrap||!ins.act4_pies) return;
+    wrap.innerHTML='';
+    var COLORS={rf:'#c75b00',pm:'#15803d',apu:'#7c3aed',other:'#9ca3af'};
+    ins.act4_pies.forEach(function(pie,idx){
+      var cid='ins-pie-'+pie.month.replace(/[-\/]/g,'_');
+      var div=document.createElement('div');
+      div.style.cssText='text-align:center;min-width:210px';
+      // build annotation lines (pp change vs prior month)
+      var ann='';
+      if(pie.pm_pct_chg!=null){
+        ann+='<div style="font-size:.7rem;line-height:1.8;margin-top:6px">'
+          +'<span style="color:'+COLORS.rf+'">▪ Reserve: '+pie.rf_pct+'%</span><br>'
+          +'<span style="color:'+COLORS.pm+'">▪ Premium: '+pie.pm_pct+'%</span><br>'
+          +(pie.apu>0?'<span style="color:'+COLORS.apu+'">▪ APU: '+pie.apu_pct+'%'+(pie.apu_pct_chg!=null?' (NEW)':'')+'</span><br>':'')
+          +'<span style="color:'+COLORS.other+'">▪ Other: '+pie.other_pct+'%</span>'
+          +'</div>';
+      } else {
+        ann='<div style="font-size:.7rem;color:var(--gray3);margin-top:6px;line-height:1.8">'
+          +'<span style="color:'+COLORS.rf+'">▪ Reserve '+pie.rf_pct+'%</span><br>'
+          +'<span style="color:'+COLORS.pm+'">▪ Premium '+pie.pm_pct+'%</span><br>'
+          +(pie.apu>0?'<span style="color:'+COLORS.apu+'">▪ APU '+pie.apu_pct+'%</span><br>':'')
+          +'<span style="color:'+COLORS.other+'">▪ Other '+pie.other_pct+'%</span>'+'</div>';
+      }
+      div.innerHTML='<div style="font-weight:700;font-size:.82rem;color:var(--navy);margin-bottom:6px">'
+        +pie.month+(pie.is_apu?'<span style="font-size:.62rem;font-weight:700;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:3px;margin-left:5px">APU Launch</span>':'')
+        +'</div>'
+        +'<canvas id="'+cid+'" width="200" height="200" style="max-width:200px"></canvas>'
+        +ann;
+      wrap.appendChild(div);
+      setTimeout((function(cid,pie){return function(){
+        var ctx=document.getElementById(cid); if(!ctx) return;
+        var labels=['Reserve','Premium'];
+        var data=[pie.rf,pie.pm];
+        var bgColors=[COLORS.rf,COLORS.pm];
+        if(pie.apu>0){labels.push('APU');data.push(pie.apu);bgColors.push(COLORS.apu);}
+        if(pie.other>0){labels.push('Other');data.push(pie.other);bgColors.push(COLORS.other);}
+        new Chart(ctx,{type:'pie',
+          data:{labels:labels,datasets:[{data:data,backgroundColor:bgColors,borderWidth:2,borderColor:'#fff'}]},
+          options:{responsive:false,plugins:{legend:{display:false},
+            tooltip:{callbacks:{label:function(it){
+              var t=it.dataset.data.reduce(function(s,v){return s+v;},0);
+              return it.label+': '+it.raw.toLocaleString()+' ('+Math.round(it.raw/t*1000)/10+'%)';
+            }}}}}});
+      };})(cid,pie),0);
+    });
+    if(obs&&ins.act4_pies.length>=2){
+      var prePie=ins.act4_pies.find(function(p){return p.month===ins.pre_mo;});
+      var postPie=ins.act4_pies.find(function(p){return p.month===ins.post_mo;});
+      if(prePie&&postPie)
+        obs.textContent='The Premium slice shrank from '+prePie.pm_pct+'% in '+prePie.month
+          +' to '+postPie.pm_pct+'% in '+postPie.month+'. '
+          +'The Reserve slice moved from '+prePie.rf_pct+'% to '+postPie.rf_pct+'%. '
+          +'The asymmetry between those two changes is the visual representation of the rate divergence identified above.';
+    }
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 5 — Volume Model expected vs actual
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var wrap=el('s5a-wrap'),obs=el('s5a-obs');
+    if(!wrap||!ins.act6a) return;
+    var a=ins.act6a;
+    var selClass=ins.act6_select&&ins.act6_select.selected==='vol'
+      ?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px':'';
+    wrap.innerHTML='<table style="font-size:.8rem;border-collapse:collapse;max-width:560px;width:100%">'
+      +'<tbody>'
+      +'<tr><td style="padding:5px 10px;color:var(--gray3);width:55%">Prior-month Premium rate ('+a.pre_mo+')</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+a.pm_rate_pre.toFixed(2)+'%</td></tr>'
+      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;color:var(--gray3)">'+a.post_mo+' Total Trips</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+N(a.tot_post)+'</td></tr>'
+      +'<tr><td style="padding:5px 10px;font-weight:600">Expected Premium ('+a.tot_post.toLocaleString()+' × '+a.pm_rate_pre.toFixed(2)+'%)</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700">'+N(a.pm_exp)+'</td></tr>'
+      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;font-weight:600">Actual Premium ('+a.post_mo+')</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;color:#b91c1c">'+N(a.pm_actual)+'</td></tr>'
+      +'<tr style="'+selClass+'"><td style="padding:5px 10px;font-weight:700;color:#b91c1c">Shortfall</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-weight:700;color:#b91c1c">'+N(a.shortfall)+' trips ('+a.shortfall_pct+'% below expectation)'
+        +(ins.act6_select&&ins.act6_select.selected==='vol'?SEL_B:'')+'</td></tr>'
+      +'</tbody></table>';
+    if(obs) obs.textContent=a.description;
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 6 — RF-Normalised Model
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var wrap=el('s6b-wrap'),obs=el('s6b-obs'),selWrap=el('s6-select-wrap'),selTxt=el('s6-select-text');
+    if(!wrap||!ins.act6b) return;
+    var b=ins.act6b;
+    var selClass=ins.act6_select&&ins.act6_select.selected==='rf'
+      ?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px':'';
+    wrap.innerHTML='<table style="font-size:.8rem;border-collapse:collapse;max-width:560px;width:100%">'
+      +'<tbody>'
+      +'<tr><td style="padding:5px 10px;color:var(--gray3);width:55%">Reserve scale factor (RF changed '+P(b.rf_rel_chg,1)+')</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+b.rf_scale.toFixed(4)+'×</td></tr>'
+      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;color:var(--gray3)">Prior-month Premium trips ('+b.pre_mo+')</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+N(b.pm_pre)+'</td></tr>'
+      +'<tr><td style="padding:5px 10px;font-weight:600">Expected Premium ('+N(b.pm_pre)+' × '+b.rf_scale.toFixed(4)+')</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700">'+N(b.pm_exp)+'</td></tr>'
+      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;font-weight:600">Actual Premium ('+b.post_mo+')</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;color:#b91c1c">'+N(b.pm_actual)+'</td></tr>'
+      +'<tr style="'+selClass+'"><td style="padding:5px 10px;font-weight:700;color:#b91c1c">Shortfall</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-weight:700;color:#b91c1c">'+N(b.shortfall)+' trips ('+b.shortfall_pct+'% below expectation)'
+        +(ins.act6_select&&ins.act6_select.selected==='rf'?SEL_B:'')+'</td></tr>'
+      +'</tbody></table>';
+    if(obs) obs.textContent=b.description;
+    if(ins.act6_select&&selTxt) selTxt.textContent=ins.act6_select.reason;
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 7 — Raw pay hours change
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var wrap=el('s7a-wrap'),obs=el('s7a-obs');
+    if(!wrap||!ins.act7a) return;
+    var a=ins.act7a;
+    wrap.innerHTML='<table style="font-size:.8rem;border-collapse:collapse;max-width:480px;width:100%">'
+      +'<thead><tr>'+TH('','left')+TH(a.pre_mo)+TH(a.post_mo)+TH('Change')+TH('Change %')+'</tr></thead>'
+      +'<tbody><tr>'
+        +TD('Premium Pay Hours (HH:MM)','font-weight:600;color:var(--gray4)')
+        +TD(HR(a.pay_pre),'text-align:right;font-family:var(--font-mono)')
+        +TD(HR(a.pay_post),'text-align:right;font-family:var(--font-mono);color:#b91c1c')
+        +TD(HR(a.pay_chg),'text-align:right;font-family:var(--font-mono);font-weight:700;'+clr(a.pay_chg))
+        +TD(P(a.pay_chg_pct,1),'text-align:right;'+clr(a.pay_chg_pct))
+      +'</tr></tbody></table>';
+    if(obs) obs.textContent=
+      'Premium pay hours fell from '+HR(a.pay_pre)+' in '+a.pre_mo+' to '+HR(a.pay_post)+' in '+a.post_mo
+      +' — a change of '+HR(a.pay_chg)+' ('+P(a.pay_chg_pct,1)+'). '
+      +'Not all of this decline is attributable to APU. '
+      +'The next step separates the portion explained by lower operational demand from the unexplained remainder.';
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 8 — Stress-adjustment side-by-side
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var wrap=el('s7b-wrap'),obs=el('s7b-obs');
+    if(!wrap||!ins.act7b) return;
+    var b=ins.act7b;
+    var volSel=b.pay_cons_scale==='vol';
+    var rfSel =b.pay_cons_scale==='rf';
+    wrap.innerHTML='<table style="font-size:.8rem;border-collapse:collapse;width:100%;max-width:680px">'
+      +'<thead><tr>'
+        +TH('','left')
+        +TH('Volume Model','right','#1a2a4a')
+        +TH('RF-Normalised Model','right','#1a2a4a','#bfdbfe','border-left:2px solid rgba(255,255,255,.2)')
+      +'</tr></thead>'
+      +'<tbody>'
+      +'<tr><td style="padding:5px 10px;color:var(--gray3)">Scale factor used</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+b.vol_scale.toFixed(4)+'× (Total trips ratio)</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);border-left:2px solid var(--gray1)">'+b.rf_scale.toFixed(4)+'× (Reserve ratio)</td></tr>'
+      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;color:var(--gray3)">Prior-month pay hours</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+HR(b.pay_pre)+'</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);border-left:2px solid var(--gray1)">'+HR(b.pay_pre)+'</td></tr>'
+      +'<tr><td style="padding:5px 10px;font-weight:600">Expected pay hours</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700">'+HR(b.pay_exp_vol)+'</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;border-left:2px solid var(--gray1)">'+HR(b.pay_exp_rf)+'</td></tr>'
+      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;font-weight:600">Actual pay hours</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);color:#b91c1c;font-weight:700">'+HR(b.pay_post||0)+'</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);color:#b91c1c;font-weight:700;border-left:2px solid var(--gray1)">'+HR(b.pay_post||0)+'</td></tr>'
+      +'<tr style="'+(rfSel?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px;':'')+'"><td style="padding:5px 10px;font-weight:700;color:#b91c1c">Pay hours shortfall</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;color:#b91c1c">'
+          +HR(b.pay_short_vol)+(volSel?SEL_B:'')+'</td>'
+        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;color:#b91c1c;border-left:2px solid var(--gray1)">'
+          +HR(b.pay_short_rf)+(rfSel?SEL_B:'')+'</td></tr>'
+      +'</tbody></table>';
+    if(obs) obs.textContent=
+      'The Volume Model gives a shortfall of '+HR(b.pay_short_vol)
+      +'; the RF-Normalised Model gives '+HR(b.pay_short_rf)+'. '
+      +'We use the '+( b.pay_cons_scale==='rf'?'RF-Normalised':'Volume')
+      +' figure ('+HR(b.pay_short_cons)+') as the conservative floor — '
+      +'it attributes the least possible pay reduction to APU and the most to genuine operational conditions. '
+      +'APU actual pay hours in '+(ins.post_mo||'')+'were '+HR(b.apu_pay_hrs)+', '
+      +'which are used directly for the financial estimate below'
+      +(b.apu_pay_hrs<=b.pay_short_cons?' (within the shortfall ceiling).':' (exceeds shortfall ceiling; capped at '+HR(b.pay_short_cons)+').');
+  })();
+
+  // ══════════════════════════════════════════════════════════════
+  // STEP 9 — Financial impact
+  // ══════════════════════════════════════════════════════════════
+  (function(){
+    var wrap=el('s8-wrap');
+    if(!wrap||!ins.act8) return;
+    var a=ins.act8;
+    var card=function(lbl,val,sub,color){
+      return '<div style="background:#fff;border-radius:var(--radius);padding:14px 16px;'
+        +'border-top:4px solid '+color+';box-shadow:var(--shadow)">'
+        +'<div style="font-size:.7rem;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+lbl+'</div>'
+        +'<div style="font-size:1.5rem;font-weight:700;color:var(--navy);line-height:1.1">'+val+'</div>'
+        +'<div style="font-size:.74rem;color:var(--gray3);margin-top:4px;line-height:1.5">'+sub+'</div></div>';
+    };
+    var HR2=function(h){ if(!h) return '0:00'; var neg=h<0; h=Math.abs(h);
+      var hh=Math.floor(h),mm=Math.round((h-hh)*60);
+      return (neg?'-':'')+hh+':'+(mm<10?'0':'')+mm; };
+    wrap.innerHTML=
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:14px;margin-bottom:18px">'
+        +card('APU Pay Hours Attributed',HR2(a.apu_hrs_attributed),
+              'APU actual: '+HR2(a.apu_pay_hrs)+(a.apu_pay_hrs>a.pay_short_cons?' (capped at shortfall)':''),'#7c3aed')
+        +card('Incremental Premium Rate','$'+a.incr_rate+'/hr',
+              '50% uplift on $250/hr base = $125/hr incremental','#b45309')
+        +card('Lost Premium Compensation','$'+a.lost_comp.toLocaleString(),
+              HR2(a.apu_hrs_attributed)+' hrs × $'+a.incr_rate+'/hr','#b91c1c')
+        +card('Lost Union Revenue','$'+a.union_loss.toLocaleString(),
+              (a.union_rate_pct).toFixed(1)+'% of $'+a.lost_comp.toLocaleString()+' lost compensation','#1a3a5c')
+      +'</div>'
+      +'<div style="font-size:.82rem;line-height:1.8;color:var(--gray4);max-width:700px;'
+        +'padding:14px 16px;background:var(--gray0);border-radius:var(--radius);border-left:4px solid #b91c1c">'
+        +'<strong>Estimated monthly impact to the pilot group ('+a.post_mo+'):</strong><br>'
+        +'We established (Step 6) that APU’s '+N(a.apu_trips)+' trips fall '
+        +(a.apu_within_short?'within':'above')+' the '+N(a.short_cons)+'-trip conservative Premium shortfall, '
+        +'supporting the assumption that those APU trips would otherwise have been Premium. '
+        +'Applying the $'+a.incr_rate+'/hr incremental Premium rate to the '
+        +HR2(a.apu_hrs_attributed)+' attributed APU pay hours, '
+        +'pilots collectively forfeited an estimated <strong>$'+a.lost_comp.toLocaleString()+'</strong> '
+        +'in incremental Premium compensation. '
+        +'At a union dues rate of '+a.union_rate_pct.toFixed(1)+'%, this represents '
+        +'<strong>$'+a.union_loss.toLocaleString()+'</strong> in lost union revenue for this month.'
+      +'</div>';
+  })();
+}
+
+
 

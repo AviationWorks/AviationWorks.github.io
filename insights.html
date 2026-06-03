@@ -21,7 +21,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-06-03</strong><br>
-        Page generated: 2026-06-03 20:05 UTC
+        Page generated: 2026-06-03 21:41 UTC
       </div>
     </div>
     <nav><a href="index.html">📈 Activity</a>
@@ -61,12 +61,10 @@
   <div style="flex:1;min-width:300px">
   <div id="insight-apu-vs-pm" class="insight-panel">
 
-    <!-- headline + badges -->
-    <div id="ins-headline" style="font-size:1.0rem;font-weight:700;color:var(--navy);line-height:1.5;margin-bottom:10px">Loading…</div>
+    <!-- headline -->
+    <div id="ins-headline" style="font-size:1.0rem;font-weight:700;color:var(--navy);line-height:1.5;margin-bottom:6px">Loading…</div>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
-      <span id="ins-status-badge"     style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:12px"></span>
-      <span id="ins-confidence-badge" style="font-size:.72rem;padding:3px 10px;border-radius:12px;background:var(--gray1);color:var(--gray4)"></span>
-      <span id="ins-generated"        style="font-size:.72rem;color:var(--gray3);margin-left:4px"></span>
+      <span id="ins-generated" style="font-size:.72rem;color:var(--gray3)"></span>
     </div>
 
     <!-- STEP 1 -->
@@ -80,53 +78,56 @@
     <p class="note" id="s1-obs" style="margin-top:16px"></p>
 
     <!-- STEP 2 -->
-    <h3 class="section-title">Step 2 — Premium as a Share of Total Trips</h3>
+    <h3 class="section-title">Step 2 — Premium Rate Over Time</h3>
     <p class="note">We calculate <strong>Premium Rate</strong> — Premium trips as a percentage of
-      all trips that month. This strips out scheduling volume: if April simply had fewer flights
-      overall, Total Trips, Reserve, and Premium trip counts should shrink proportionally and the <em>rate</em> should hold steady.
+      all trips that month. This strips out scheduling volume: if a month simply had fewer flights
+      overall, all categories should shrink proportionally and the <em>rate</em> should hold steady.
       A falling rate means Premium shrank faster than the schedule.</p>
     <div style="overflow-x:auto;margin-bottom:8px">
       <table style="font-size:.8rem;border-collapse:collapse;width:100%">
         <thead id="s2-thead"></thead><tbody id="s2-tbody"></tbody>
       </table>
     </div>
-    <p class="note" id="s2-obs" style="margin-top:16px"></p>
+    <canvas id="s2-chart" height="120" style="margin:12px 0 4px;max-width:600px;width:100%"></canvas>
+    <p class="note" id="s2-obs" style="margin-top:8px"></p>
 
     <!-- STEP 3 -->
-    <h3 class="section-title">Step 3 — Reserve as a Share of Total Trips</h3>
+    <h3 class="section-title">Step 3 — Reserve Rate Over Time</h3>
     <p class="note">We run the same analysis for Reserve trips. Reserve usage is our best proxy
       for <strong>operational stress</strong> — when the schedule is disrupted, Reserve climbs;
       when operations run smoothly, it falls.
-      If Reserve also fell as a rate in April, it tells us the month was genuinely less demanding
-      and some Premium reduction is expected. The critical question is: by how much, and did
-      Premium fall proportionally?</p>
+      If Reserve also fell as a rate in months following APU launch, it tells us those months were
+      genuinely less demanding and some Premium reduction is expected. The critical question is:
+      by how much, and did Premium fall proportionally?</p>
     <div style="overflow-x:auto;margin-bottom:8px">
       <table style="font-size:.8rem;border-collapse:collapse;width:100%">
         <thead id="s3-thead"></thead><tbody id="s3-tbody"></tbody>
       </table>
     </div>
-    <p class="note" id="s3-obs" style="margin-top:16px"></p>
+    <canvas id="s3-chart" height="120" style="margin:12px 0 4px;max-width:600px;width:100%"></canvas>
+    <p class="note" id="s3-obs" style="margin-top:8px"></p>
 
     <!-- STEP 4 — so-what comparison + pies -->
     <h3 class="section-title">Step 4 — How Much Did Each Rate Really Change?</h3>
-    <p class="note" style="margin-top:12px">In the pie charts below you can see the slight (-13.8%) reduction in Reserve slice (orange) compared to the much more noticeable (45.8%) reduction in Premium slice (green). Each chart shows the absolute trip count along with each slice's percentage share.</p>
+    <p class="note" style="margin-top:12px">Each chart shows the composition of open trips for that month. Watch the Premium slice (green) relative to the Reserve slice (orange) — Reserve is our proxy for operational stress. If Premium shrinks faster than Reserve across the same period, volume alone cannot explain it.</p>
     <div id="ins-pies" style="display:flex;flex-wrap:wrap;gap:24px;margin-bottom:8px;align-items:flex-start"></div>
     <p class="note" id="s4p-obs" style="margin-top:4px"></p>
 
     <!-- STEP 5 — Expected vs Actual: Method A -->
     <h3 class="section-title">Step 5 — Expected vs Actual: Volume Model</h3>
-    <p class="note">We now quantify the gap. The <strong>Volume Model</strong> asks: if April had
-      simply maintained March's Premium rate, how many Premium trips would we expect?
+    <p class="note">We now quantify the gap. The <strong>Volume Model</strong> asks: if the first APU month
+      had simply maintained the prior month's Premium rate, how many Premium trips would we expect?
       This is the most straightforward baseline — it assumes the months are operationally
       identical except for total trip count.</p>
     <div id="s5a-wrap" style="margin-bottom:8px"></div>
+    <canvas id="s5a-chart" height="130" style="margin:12px 0 4px;max-width:500px;width:100%"></canvas>
     <p class="note" id="s5a-obs"></p>
 
     <!-- STEP 6 — Expected vs Actual: Method B -->
     <h3 class="section-title">Step 6 — Expected vs Actual: Reserve-Normalised Model</h3>
-    <p class="note">The Volume Model doesn't account for the fact that April was genuinely less
-      demanding (Reserve fell too). The <strong>Reserve-Normalised Model</strong> gives April
-      credit for being a quieter month: it scales the March Premium count by the same factor
+    <p class="note">The Volume Model doesn't account for genuine operational differences between months.
+      The <strong>Reserve-Normalised Model</strong> gives the post-APU month
+      credit for being operationally quieter: it scales the prior-month Premium count by the same factor
       that Reserve changed, then computes the remaining unexplained shortfall.
       This is the more conservative approach — it minimises the portion attributed to APU.</p>
     <div id="s6b-wrap" style="margin-bottom:8px"></div>
@@ -167,6 +168,14 @@
       <strong>$125 per hour</strong> above base.
       APU hours are capped at the stress-adjusted pay shortfall (Step 8) if they exceed it.</p>
     <div id="s8-wrap" style="margin-bottom:24px"></div>
+
+    <!-- SO WHAT bottom line -->
+    <div id="ins-bottom-line" style="margin:28px 0 24px;padding:20px 22px;border-radius:var(--radius);
+         background:linear-gradient(135deg,#1a3a5c 0%,#2d1a5c 100%);border-left:5px solid #7c3aed">
+      <div style="font-size:.72rem;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.08em;
+                  text-transform:uppercase;margin-bottom:10px">&#128269; Bottom Line</div>
+      <div id="ins-bottom-text" style="font-size:1.35rem;font-weight:700;color:#fff;line-height:1.5"></div>
+    </div>
 
     <!-- caveats -->
     <div style="padding:14px 16px;background:var(--gray0);border-radius:var(--radius);border-left:3px solid var(--gray2)">

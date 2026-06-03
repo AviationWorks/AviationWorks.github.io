@@ -2386,21 +2386,8 @@ function initInsights(D) {
   var INS = D.insights; if (!INS) return;
   var ins = INS['apu_vs_pm']; if (!ins) return;
 
-  // ── badges ────────────────────────────────────────────────────
   var el = function(id){ return document.getElementById(id); };
   if (el('ins-headline')) el('ins-headline').textContent = ins.headline || '—';
-  var SL = {positive:'✓ Positive',negative:'⚠ Negative',neutral:'→ Neutral',inconclusive:'? Inconclusive'};
-  if (el('ins-status-badge')){
-    el('ins-status-badge').textContent = SL[ins.status]||ins.status;
-    el('ins-status-badge').className   = 'ins-badge-'+(ins.status||'inconclusive');
-  }
-  var CC={high:'#15803d',moderate:'#b45309',low:'#c75b00',insufficient_data:'#7a8aab',inconclusive:'#7a8aab'};
-  var CL={high:'● High confidence',moderate:'● Moderate confidence',low:'● Low confidence',
-          insufficient_data:'● Insufficient data',inconclusive:'● Inconclusive'};
-  if (el('ins-confidence-badge')){
-    el('ins-confidence-badge').textContent=CL[ins.confidence]||ins.confidence;
-    el('ins-confidence-badge').style.color=CC[ins.confidence]||'var(--gray3)';
-  }
   if (el('ins-generated')&&INS._meta) el('ins-generated').textContent='Computed '+INS._meta.generated_at;
   if (el('ins-caveats')&&ins.caveats)
     el('ins-caveats').innerHTML=ins.caveats.map(function(c){return '<li>'+c+'</li>';}).join('');
@@ -2487,10 +2474,30 @@ function initInsights(D) {
       if(r.is_apu) kRow=r;
     });
     tb.innerHTML=html;
-    if(obs&&kRow) obs.textContent=
-      'Premium’s share of total trips fell 45.8% and the rate fell from 5.92% in 2026-03 to 3.36% in 2026-04. '
-      +'This means Premium lost more than just the trips lost due to a quieter schedule. '
-      +'Let’s compare it to the change in Reserve usage.';
+    // Build line chart for Premium rate
+    (function(){
+      var ctx=el('s2-chart'); if(!ctx) return;
+      var months=ins.act2_rows.map(function(r){return r.month;});
+      var rates=ins.act2_rows.map(function(r){return r.pm_rate||0;});
+      var bgColors=ins.act2_rows.map(function(r){return r.is_apu?'#7c3aed':'#15803d';});
+      new Chart(ctx,{type:'line',data:{labels:months,datasets:[{
+        label:'Premium Rate (%)',data:rates,
+        borderColor:'#15803d',backgroundColor:'rgba(21,128,61,.1)',
+        pointBackgroundColor:bgColors,pointRadius:5,pointHoverRadius:7,
+        fill:true,tension:.3
+      }]},options:{responsive:true,plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:function(it){return 'Premium Rate: '+it.raw.toFixed(2)+'%';}}}},
+        scales:{y:{beginAtZero:false,ticks:{callback:function(v){return v.toFixed(1)+'%';}}}}}});
+    })();
+    if(obs&&kRow){
+      var firstRow=ins.act2_rows[0];
+      obs.textContent=
+        'Premium’s share of total trips fell from '+(firstRow?firstRow.pm_rate.toFixed(2)+'%':'-')
+        +' in '+(firstRow?firstRow.month:'-')+' to '+kRow.pm_rate.toFixed(2)+'% in '+kRow.month
+        +' ('+P(kRow.pm_rate_rel_chg,1)+' relative change). '
+        +'This means Premium lost more than just the trips lost due to a quieter schedule. '
+        +'Let’s compare it to the change in Reserve usage.';
+    }
   })();
 
   // ══════════════════════════════════════════════════════════════
@@ -2514,12 +2521,31 @@ function initInsights(D) {
       if(r.is_apu) kRow=r;
     });
     tb.innerHTML=html;
-    if(obs&&kRow) obs.textContent=
-      'Reserve also fell in 2026-04, but only with a month over month decline of 13.8%. '
-      +'The rate fell from 28.44% to 25.71%. '
-      +'This confirms April was genuinely less operationally demanding, '
-      +'so some Premium reduction is expected. '
-      +'The next step compares the two relative changes directly.';
+    // Build line chart for Reserve rate
+    (function(){
+      var ctx=el('s3-chart'); if(!ctx) return;
+      var months=ins.act3_rows.map(function(r){return r.month;});
+      var rates=ins.act3_rows.map(function(r){return r.rf_rate||0;});
+      var bgColors=ins.act3_rows.map(function(r){return r.is_apu?'#7c3aed':'#b45309';});
+      new Chart(ctx,{type:'line',data:{labels:months,datasets:[{
+        label:'Reserve Rate (%)',data:rates,
+        borderColor:'#b45309',backgroundColor:'rgba(199,91,0,.1)',
+        pointBackgroundColor:bgColors,pointRadius:5,pointHoverRadius:7,
+        fill:true,tension:.3
+      }]},options:{responsive:true,plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:function(it){return 'Reserve Rate: '+it.raw.toFixed(2)+'%';}}}},
+        scales:{y:{beginAtZero:false,ticks:{callback:function(v){return v.toFixed(1)+'%';}}}}}});
+    })();
+    if(obs&&kRow){
+      var firstRfRow=ins.act3_rows[0];
+      obs.textContent=
+        'Reserve’s share of total trips moved from '+(firstRfRow?firstRfRow.rf_rate.toFixed(2)+'%':'-')
+        +' in '+(firstRfRow?firstRfRow.month:'-')+' to '+kRow.rf_rate.toFixed(2)+'% in '+kRow.month
+        +' ('+P(kRow.rf_rate_rel_chg,1)+' relative change). '
+        +'This confirms the period was operationally different from the baseline, '
+        +'so some Premium reduction is expected. '
+        +'The next step compares the two relative changes directly.';
+    }
   })();
 
   // ══════════════════════════════════════════════════════════════
@@ -2646,6 +2672,19 @@ function initInsights(D) {
         +(ins.act6_select&&ins.act6_select.selected==='vol'?SEL_B:'')+'</td></tr>'
       +'</tbody></table>';
     if(obs) obs.textContent=a.description;
+    // Expected vs Actual bar chart
+    (function(){
+      var ctx=el('s5a-chart'); if(!ctx) return;
+      new Chart(ctx,{type:'bar',
+        data:{labels:['Expected Premium','Actual Premium'],
+          datasets:[{data:[a.pm_exp,a.pm_actual],
+            backgroundColor:['rgba(21,128,61,.7)','rgba(185,28,28,.7)'],
+            borderColor:['#15803d','#b91c1c'],borderWidth:2}]},
+        options:{responsive:true,indexAxis:'y',
+          plugins:{legend:{display:false},
+            tooltip:{callbacks:{label:function(it){return it.raw.toLocaleString()+' trips';}}}},
+          scales:{x:{beginAtZero:true,ticks:{callback:function(v){return v.toLocaleString();}}}}}});
+    })();
   })();
 
   // ══════════════════════════════════════════════════════════════
@@ -2744,46 +2783,69 @@ function initInsights(D) {
   })();
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 9 — Financial impact
+  // STEP 9 — Financial impact with monthly + cumulative cards
   // ══════════════════════════════════════════════════════════════
   (function(){
     var wrap=el('s8-wrap');
     if(!wrap||!ins.act8) return;
     var a=ins.act8;
-    var card=function(lbl,val,sub,color){
+    var HR2=function(h){ if(!h) return '0:00'; var neg=h<0; h=Math.abs(h);
+      var hh=Math.floor(h),mm=Math.round((h-hh)*60);
+      return (neg?'-':'')+hh+':'+(mm<10?'0':'')+mm; };
+    var hasCum = (a.post_months&&a.post_months.length>1);
+
+    var card=function(lbl,val,sub,sub2,color){
       return '<div style="background:#fff;border-radius:var(--radius);padding:14px 16px;'
         +'border-top:4px solid '+color+';box-shadow:var(--shadow)">'
         +'<div style="font-size:.7rem;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+lbl+'</div>'
         +'<div style="font-size:1.5rem;font-weight:700;color:var(--navy);line-height:1.1">'+val+'</div>'
-        +'<div style="font-size:.74rem;color:var(--gray3);margin-top:4px;line-height:1.5">'+sub+'</div></div>';
+        +'<div style="font-size:.74rem;color:var(--gray3);margin-top:4px;line-height:1.5">'+sub+'</div>'
+        +(sub2?'<div style="font-size:.74rem;color:var(--gray3);border-top:1px dashed var(--gray1);margin-top:8px;padding-top:6px;line-height:1.5">'+sub2+'</div>':'')
+        +'</div>';
     };
-    var HR2=function(h){ if(!h) return '0:00'; var neg=h<0; h=Math.abs(h);
-      var hh=Math.floor(h),mm=Math.round((h-hh)*60);
-      return (neg?'-':'')+hh+':'+(mm<10?'0':'')+mm; };
+
     wrap.innerHTML=
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:14px;margin-bottom:18px">'
-        +card('APU Pay Hours Attributed',HR2(a.apu_hrs_attributed),
-              'APU actual: '+HR2(a.apu_pay_hrs)+(a.apu_pay_hrs>a.pay_short_cons?' (capped at shortfall)':''),'#7c3aed')
-        +card('Incremental Premium Rate','$'+a.incr_rate+'/hr',
-              '50% uplift on $250/hr base = $125/hr incremental','#b45309')
-        +card('Lost Premium Compensation','$'+a.lost_comp.toLocaleString(),
-              HR2(a.apu_hrs_attributed)+' hrs × $'+a.incr_rate+'/hr','#b91c1c')
-        +card('Lost Union Revenue','$'+a.union_loss.toLocaleString(),
-              (a.union_rate_pct).toFixed(1)+'% of $'+a.lost_comp.toLocaleString()+' lost compensation','#1a3a5c')
+      '<div style="font-size:.7rem;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
+        +(hasCum
+          ?'This month ('+a.post_mo+') &nbsp;/&nbsp; <span style="color:var(--navy)">Cumulative since APU launch</span>'
+          :'This month ('+a.post_mo+')')
       +'</div>'
-      +'<div style="font-size:.82rem;line-height:1.8;color:var(--gray4);max-width:700px;'
-        +'padding:14px 16px;background:var(--gray0);border-radius:var(--radius);border-left:4px solid #b91c1c">'
-        +'<strong>Estimated monthly impact to the pilot group ('+a.post_mo+'):</strong><br>'
-        +'We established (Step 6) that APU’s '+N(a.apu_trips)+' trips fall '
-        +(a.apu_within_short?'within':'above')+' the '+N(a.short_cons)+'-trip conservative Premium shortfall, '
-        +'supporting the assumption that those APU trips would otherwise have been Premium. '
-        +'Applying the $'+a.incr_rate+'/hr incremental Premium rate to the '
-        +HR2(a.apu_hrs_attributed)+' attributed APU pay hours, '
-        +'pilots collectively forfeited an estimated <strong>$'+a.lost_comp.toLocaleString()+'</strong> '
-        +'in incremental Premium compensation. '
-        +'At a union dues rate of '+a.union_rate_pct.toFixed(1)+'%, this represents '
-        +'<strong>$'+a.union_loss.toLocaleString()+'</strong> in lost union revenue for this month.'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:24px">'
+        +card('APU Pay Hours Attributed',
+              HR2(a.apu_hrs_attributed),
+              'This month'+((a.apu_pay_hrs>a.pay_short_cons)?' (capped at shortfall)':''),
+              hasCum?'Cumulative: '+HR2(a.cum_apu_hrs):null,
+              '#7c3aed')
+        +card('Incremental Premium Rate',
+              '$'+a.incr_rate+'/hr',
+              '50% uplift on $250/hr base rate',
+              null,
+              '#b45309')
+        +card('Lost Premium Compensation',
+              '$'+a.lost_comp.toLocaleString(),
+              'This month: '+HR2(a.apu_hrs_attributed)+' hrs × $'+a.incr_rate,
+              hasCum?'Cumulative: $'+a.cum_lost_comp.toLocaleString():null,
+              '#b91c1c')
+        +card('Lost Union Revenue',
+              '$'+a.union_loss.toLocaleString(),
+              'This month: '+a.union_rate_pct.toFixed(1)+'% of $'+a.lost_comp.toLocaleString(),
+              hasCum?'Cumulative: $'+a.cum_union_loss.toLocaleString():null,
+              '#1a3a5c')
       +'</div>';
+
+    // Bottom Line
+    var btm=el('ins-bottom-text');
+    if(btm){
+      var numMonths=hasCum?a.post_months.length:1;
+      var monthWord=numMonths===1?'month':'months';
+      btm.innerHTML=
+        'Over '+(numMonths>1?numMonths+' '+monthWord+' since APU launched':'the first APU month')
+        +', pilots collectively forfeited an estimated '
+        +'<span style="color:#f9a8d4">$'+a.cum_lost_comp.toLocaleString()+'</span>'
+        +' in incremental Premium compensation — '
+        +'representing <span style="color:#c4b5fd">$'+a.cum_union_loss.toLocaleString()+'</span>'
+        +' in lost union revenue.';
+    }
   })();
 }
 

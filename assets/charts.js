@@ -250,15 +250,18 @@ function makeRecentBar(D, month, base, aircraft, seat, region) {
 
 /* ── Monthly summary cards with 4 filter dropdowns ── */
 function updateCards(D, month, base, aircraft, seat, region) {
-  // total: deduplicated via COUNT(DISTINCT seq|dep) in q_monthly_detail
+  // totalRaw: every log row (raw activity, matches the bar chart below)
+  // total:    once-ever dedup — each trip counts once, in the month of its
+  //           most recent log event (same rule as the Codes tab)
   const detail = (D.monthly_cards.detail[month] || []);
-  let total = 0;
+  let total = 0, totalRaw = 0;
   detail.forEach(r => {
     if (base     !== 'All' && r.base     !== base)     return;
     if (aircraft !== 'All' && r.aircraft !== aircraft) return;
     if (seat     !== 'All' && r.seat     !== seat)     return;
     if (region   !== 'All' && r.region   !== region)   return;
-    total += r.total;
+    total    += r.total;
+    totalRaw += r.total_raw || 0;
   });
   // RF, PM, APU, FT: all from deduplicated page.daily arrays
   let rf = 0, pm = 0, apu = 0, ft = 0;
@@ -303,6 +306,8 @@ function updateCards(D, month, base, aircraft, seat, region) {
     });
   }
   document.getElementById('card-total').textContent = total.toLocaleString();
+  const totalSub = document.getElementById('card-total-sub');
+  if (totalSub) totalSub.textContent = 'Total Open Time Activity: ' + totalRaw.toLocaleString();
   document.getElementById('card-rf').textContent    = rf.toLocaleString();
   document.getElementById('card-pm').textContent    = pm.toLocaleString();
   const apuEl = document.getElementById('card-apu');
@@ -2447,9 +2452,10 @@ function initInsights(D) {
       var aRow=ins.act1_rows.find(function(r){return r.is_apu;});
       var bRow=ins.act1_rows.find(function(r){return !r.is_apu;});
       if(aRow&&bRow) obs.textContent=
-        'Premium fell from '+N(bRow.pm)+' to '+N(aRow.pm)+' in the APU launch month. '
-        +'APU contributed '+N(aRow.apu)+' trips that did not exist the prior month. '
-        +'But did Premium simply fall because April was a quieter month? The next steps investigate.';
+        'Premium fell from '+N(bRow.pm)+' to '+N(aRow.pm)+' in the APU launch month, '
+        +'and APU contributed '+N(aRow.apu)+' trips that did not exist the prior month. '
+        +'But did Premium simply fall because the schedule was quieter in those months? '
+        +'The next steps investigate across every month of data.';
     }
   })();
 
@@ -2651,40 +2657,71 @@ function initInsights(D) {
   // ══════════════════════════════════════════════════════════════
   // STEP 5 — Volume Model expected vs actual
   // ══════════════════════════════════════════════════════════════
+  var SHORT_TD=function(sh,pct){
+    var c=sh>0?'color:#b91c1c':'color:#15803d';
+    return TD(N(sh),'text-align:right;font-family:var(--font-mono);font-weight:700;'+c)
+      +TD((pct!=null?pct.toFixed(1)+'%':'—'),'text-align:right;'+c);
+  };
+  var BASE_B='<span style="font-size:.62rem;font-weight:700;background:var(--gray2);color:#fff;'
+    +'padding:1px 5px;border-radius:3px;margin-left:5px">Baseline</span>';
+  var expActChart=function(canvasId,rows){
+    var ctx=el(canvasId); if(!ctx||!rows||!rows.length) return;
+    new Chart(ctx,{type:'line',data:{
+      labels:rows.map(function(r){return r.month;}),
+      datasets:[
+        {label:'Expected Premium',
+         data:rows.map(function(r){return r.expected;}),
+         borderColor:'#1a3a5c',borderDash:[7,4],borderWidth:2,
+         pointBackgroundColor:'#1a3a5c',pointRadius:4,pointHoverRadius:6,
+         fill:false,tension:.25},
+        {label:'Actual Premium',
+         data:rows.map(function(r){return r.actual;}),
+         borderColor:'#15803d',backgroundColor:'rgba(21,128,61,.12)',borderWidth:2,
+         pointBackgroundColor:rows.map(function(r){return r.is_apu?'#7c3aed':'#15803d';}),
+         pointRadius:4,pointHoverRadius:6,
+         fill:true,tension:.25}
+      ]},
+      options:{responsive:true,
+        plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:24}},
+          tooltip:{callbacks:{label:function(it){
+            return it.dataset.label+': '+it.raw.toLocaleString()+' trips';}}}},
+        scales:{
+          y:{beginAtZero:true,title:{display:true,text:'Premium trips'},
+             ticks:{callback:function(v){return v.toLocaleString();}}},
+          x:{}}}});
+  };
+
   (function(){
     var wrap=el('s5a-wrap'),obs=el('s5a-obs');
     if(!wrap||!ins.act6a) return;
     var a=ins.act6a;
-    var selClass=ins.act6_select&&ins.act6_select.selected==='vol'
-      ?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px':'';
-    wrap.innerHTML='<table style="font-size:.8rem;border-collapse:collapse;max-width:560px;width:100%">'
-      +'<tbody>'
-      +'<tr><td style="padding:5px 10px;color:var(--gray3);width:55%">Prior-month Premium rate ('+a.pre_mo+')</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+a.pm_rate_pre.toFixed(2)+'%</td></tr>'
-      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;color:var(--gray3)">'+a.post_mo+' Total Trips</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+N(a.tot_post)+'</td></tr>'
-      +'<tr><td style="padding:5px 10px;font-weight:600">Expected Premium ('+a.tot_post.toLocaleString()+' × '+a.pm_rate_pre.toFixed(2)+'%)</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700">'+N(a.pm_exp)+'</td></tr>'
-      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;font-weight:600">Actual Premium ('+a.post_mo+')</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;color:#b91c1c">'+N(a.pm_actual)+'</td></tr>'
-      +'<tr style="'+selClass+'"><td style="padding:5px 10px;font-weight:700;color:#b91c1c">Shortfall</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-weight:700;color:#b91c1c">'+N(a.shortfall)+' trips ('+a.shortfall_pct+'% below expectation)'
-        +(ins.act6_select&&ins.act6_select.selected==='vol'?SEL_B:'')+'</td></tr>'
-      +'</tbody></table>';
+    var selVol=ins.act6_select&&ins.act6_select.selected==='vol';
+    var rows=a.rows||[];
+    var html='<table style="font-size:.8rem;border-collapse:collapse;max-width:720px;width:100%">'
+      +'<thead><tr>'+TH('Month','left')+TH('Total Trips')
+      +TH('Expected Premium<br><span style="font-weight:400;font-size:.68rem">Total × '+a.pm_rate_pre.toFixed(2)+'% ('+a.pre_mo+' rate)</span>')
+      +TH('Actual Premium','right',NAVY,'#9ae6b4')
+      +TH('Shortfall')+TH('Short %')+'</tr></thead><tbody>';
+    rows.forEach(function(r,i){
+      html+='<tr style="'+rowBg(r,i)+'">'
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.is_baseline?BASE_B:''),
+            'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(N(r.total),'text-align:right;font-family:var(--font-mono)')
+        +TD(N(r.expected),'text-align:right;font-family:var(--font-mono)')
+        +TD(N(r.actual),'text-align:right;font-family:var(--font-mono);color:#15803d;font-weight:600')
+        +SHORT_TD(r.shortfall,r.shortfall_pct)+'</tr>';
+    });
+    html+='<tr style="border-top:2px solid var(--navy);'
+      +(selVol?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px':'background:var(--gray0)')+'">'
+      +TD('Post-APU cumulative'+(selVol?SEL_B:''),'text-align:left;font-weight:700')
+      +TD('','')
+      +TD(N(a.cum_exp),'text-align:right;font-family:var(--font-mono);font-weight:700')
+      +TD(N(a.cum_act),'text-align:right;font-family:var(--font-mono);font-weight:700;color:#15803d')
+      +SHORT_TD(a.cum_short,a.cum_short_pct)+'</tr>';
+    html+='</tbody></table>';
+    wrap.innerHTML=html;
     if(obs) obs.textContent=a.description;
-    // Expected vs Actual bar chart
-    (function(){
-      var ctx=el('s5a-chart'); if(!ctx) return;
-      new Chart(ctx,{type:'bar',
-        data:{labels:['Expected Premium','Actual Premium'],
-          datasets:[{data:[a.pm_exp,a.pm_actual],
-            backgroundColor:['rgba(21,128,61,.7)','rgba(185,28,28,.7)'],
-            borderColor:['#15803d','#b91c1c'],borderWidth:2}]},
-        options:{responsive:true,indexAxis:'y',
-          plugins:{legend:{display:false},
-            tooltip:{callbacks:{label:function(it){return it.raw.toLocaleString()+' trips';}}}},
-          scales:{x:{beginAtZero:true,ticks:{callback:function(v){return v.toLocaleString();}}}}}});
-    })();
+    expActChart('s5a-chart',rows);
   })();
 
   // ══════════════════════════════════════════════════════════════
@@ -2694,24 +2731,50 @@ function initInsights(D) {
     var wrap=el('s6b-wrap'),obs=el('s6b-obs'),selWrap=el('s6-select-wrap'),selTxt=el('s6-select-text');
     if(!wrap||!ins.act6b) return;
     var b=ins.act6b;
-    var selClass=ins.act6_select&&ins.act6_select.selected==='rf'
-      ?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px':'';
-    wrap.innerHTML='<table style="font-size:.8rem;border-collapse:collapse;max-width:560px;width:100%">'
-      +'<tbody>'
-      +'<tr><td style="padding:5px 10px;color:var(--gray3);width:55%">Reserve scale factor (RF changed '+P(b.rf_rel_chg,1)+')</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+b.rf_scale.toFixed(4)+'×</td></tr>'
-      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;color:var(--gray3)">Prior-month Premium trips ('+b.pre_mo+')</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono)">'+N(b.pm_pre)+'</td></tr>'
-      +'<tr><td style="padding:5px 10px;font-weight:600">Expected Premium ('+N(b.pm_pre)+' × '+b.rf_scale.toFixed(4)+')</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700">'+N(b.pm_exp)+'</td></tr>'
-      +'<tr style="background:var(--gray0)"><td style="padding:5px 10px;font-weight:600">Actual Premium ('+b.post_mo+')</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-family:var(--font-mono);font-weight:700;color:#b91c1c">'+N(b.pm_actual)+'</td></tr>'
-      +'<tr style="'+selClass+'"><td style="padding:5px 10px;font-weight:700;color:#b91c1c">Shortfall</td>'
-        +'<td style="padding:5px 10px;text-align:right;font-weight:700;color:#b91c1c">'+N(b.shortfall)+' trips ('+b.shortfall_pct+'% below expectation)'
-        +(ins.act6_select&&ins.act6_select.selected==='rf'?SEL_B:'')+'</td></tr>'
-      +'</tbody></table>';
+    var selRf=ins.act6_select&&ins.act6_select.selected==='rf';
+    var rows=b.rows||[];
+    var html='<table style="font-size:.8rem;border-collapse:collapse;max-width:760px;width:100%">'
+      +'<thead><tr>'+TH('Month','left')
+      +TH('Reserve Trips','right',NAVY,'#fbd38d')
+      +TH('RF Scale<br><span style="font-weight:400;font-size:.68rem">vs '+b.pre_mo+'</span>')
+      +TH('Expected Premium<br><span style="font-weight:400;font-size:.68rem">'+N(b.pm_pre)+' × scale</span>')
+      +TH('Actual Premium','right',NAVY,'#9ae6b4')
+      +TH('Shortfall')+TH('Short %')+'</tr></thead><tbody>';
+    rows.forEach(function(r,i){
+      html+='<tr style="'+rowBg(r,i)+'">'
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.is_baseline?BASE_B:''),
+            'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(N(r.rf),'text-align:right;font-family:var(--font-mono);color:#b45309')
+        +TD(r.rf_scale.toFixed(4)+'×','text-align:right;font-family:var(--font-mono)')
+        +TD(N(r.expected),'text-align:right;font-family:var(--font-mono)')
+        +TD(N(r.actual),'text-align:right;font-family:var(--font-mono);color:#15803d;font-weight:600')
+        +SHORT_TD(r.shortfall,r.shortfall_pct)+'</tr>';
+    });
+    html+='<tr style="border-top:2px solid var(--navy);'
+      +(selRf?'background:#f0fdf4;outline:2px solid #15803d;outline-offset:-2px':'background:var(--gray0)')+'">'
+      +TD('Post-APU cumulative'+(selRf?SEL_B:''),'text-align:left;font-weight:700')
+      +TD('','')+TD('','')
+      +TD(N(b.cum_exp),'text-align:right;font-family:var(--font-mono);font-weight:700')
+      +TD(N(b.cum_act),'text-align:right;font-family:var(--font-mono);font-weight:700;color:#15803d')
+      +SHORT_TD(b.cum_short,b.cum_short_pct)+'</tr>';
+    html+='</tbody></table>';
+    wrap.innerHTML=html;
     if(obs) obs.textContent=b.description;
+    expActChart('s6b-chart',rows);
     if(ins.act6_select&&selTxt) selTxt.textContent=ins.act6_select.reason;
+    // Trend assessment callout
+    if(ins.act6_trend){
+      var tw=el('s6-trend-wrap'),tt=el('s6-trend-text');
+      if(tw&&tt){
+        tw.style.display='block';
+        tt.textContent=ins.act6_trend.verdict;
+        if(!ins.act6_trend.established){
+          tw.style.background='#fffbeb';
+          tw.style.borderLeftColor='#b45309';
+          var hd=el('s6-trend-head'); if(hd) hd.style.color='#b45309';
+        }
+      }
+    }
   })();
 
   // ══════════════════════════════════════════════════════════════
@@ -2807,13 +2870,13 @@ function initInsights(D) {
     wrap.innerHTML=
       '<div style="font-size:.7rem;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
         +(hasCum
-          ?'This month ('+a.post_mo+') &nbsp;/&nbsp; <span style="color:var(--navy)">Cumulative since APU launch</span>'
-          :'This month ('+a.post_mo+')')
+          ?'Latest month ('+a.post_mo+') &nbsp;/&nbsp; <span style="color:var(--navy)">Cumulative since APU launch</span>'
+          :'Latest month ('+a.post_mo+')')
       +'</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:24px">'
         +card('APU Pay Hours Attributed',
               HR2(a.apu_hrs_attributed),
-              'This month'+((a.apu_pay_hrs>a.pay_short_cons)?' (capped at shortfall)':''),
+              'Latest month'+((a.apu_pay_hrs>a.pay_short_cons)?' (capped at shortfall)':''),
               hasCum?'Cumulative: '+HR2(a.cum_apu_hrs):null,
               '#7c3aed')
         +card('Incremental Premium Rate',
@@ -2823,12 +2886,12 @@ function initInsights(D) {
               '#b45309')
         +card('Lost Premium Compensation',
               '$'+a.lost_comp.toLocaleString(),
-              'This month: '+HR2(a.apu_hrs_attributed)+' hrs × $'+a.incr_rate,
+              'Latest month: '+HR2(a.apu_hrs_attributed)+' hrs × $'+a.incr_rate,
               hasCum?'Cumulative: $'+a.cum_lost_comp.toLocaleString():null,
               '#b91c1c')
         +card('Lost Union Revenue',
               '$'+a.union_loss.toLocaleString(),
-              'This month: '+a.union_rate_pct.toFixed(1)+'% of $'+a.lost_comp.toLocaleString(),
+              'Latest month: '+a.union_rate_pct.toFixed(1)+'% of $'+a.lost_comp.toLocaleString(),
               hasCum?'Cumulative: $'+a.cum_union_loss.toLocaleString():null,
               '#1a3a5c')
       +'</div>';

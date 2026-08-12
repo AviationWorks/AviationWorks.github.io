@@ -20,14 +20,14 @@
         <p>Flight Data Analysis</p>
       </div>
       <div class="header-meta">
-        Last scrape: <strong>2026-07-05</strong><br>
-        Page generated: 2026-07-05 21:26 UTC
+        Last scrape: <strong>2026-08-08</strong><br>
+        Page generated: 2026-08-12 02:58 UTC
       </div>
     </div>
-    <nav><a href="index.html">📈 Activity</a>
+    <nav><a href="index.html">📈 OT Activity</a>
 <a href="daily.html">📊 Codes</a>
-<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium Trips</a>
-<a href="rf.html">🛡️ Reserve Trips</a>
+<a href="pm.html"><span style="color:#34d399;font-weight:900">$</span> Premium</a>
+<a href="rf.html">🛡️ Reserve</a>
 <a href="apu.html"><span style="color:#7c3aed;font-weight:900">&#9889;</span> Aggressive Pickup</a>
 <a href="ft.html"><span style="color:#dc2626;font-weight:900">&#9888;</span> Fatigue</a>
 <a href="insights.html" class="active"><span style="color:#7a8aab;font-weight:900">&#128269;</span> Insights</a>
@@ -115,31 +115,44 @@
 
     <!-- STEP 5 — Expected vs Actual: Method A -->
     <h3 class="section-title">Step 5 — Expected vs Actual: Volume Model</h3>
-    <p class="note">We now quantify the gap. The <strong>Volume Model</strong> asks: if the first APU month
-      had simply maintained the prior month's Premium rate, how many Premium trips would we expect?
-      This is the most straightforward baseline — it assumes the months are operationally
-      identical except for total trip count.</p>
+    <p class="note">We now quantify the gap, month by month. The <strong>Volume Model</strong> asks:
+      if each month had simply maintained the last pre-APU month's Premium rate, how many Premium
+      trips would we expect? Expected = that month's total trips &times; the baseline Premium rate.
+      The chart plots the expected and actual Premium lines across every month — the vertical gap
+      between the two lines is the shortfall. This is the most straightforward baseline: it assumes
+      every month is operationally identical to the baseline except for total trip count.</p>
     <div id="s5a-wrap" style="margin-bottom:8px"></div>
-    <canvas id="s5a-chart" height="130" style="margin:12px 0 4px;max-width:500px;width:100%"></canvas>
+    <canvas id="s5a-chart" height="130" style="margin:12px 0 4px;max-width:640px;width:100%"></canvas>
     <p class="note" id="s5a-obs"></p>
 
     <!-- STEP 6 — Expected vs Actual: Method B -->
     <h3 class="section-title">Step 6 — Expected vs Actual: Reserve-Normalised Model</h3>
     <p class="note">The Volume Model doesn't account for genuine operational differences between months.
-      The <strong>Reserve-Normalised Model</strong> gives the post-APU month
-      credit for being operationally quieter: it scales the prior-month Premium count by the same factor
-      that Reserve changed, then computes the remaining unexplained shortfall.
-      This is the more conservative approach — it minimises the portion attributed to APU.</p>
+      The <strong>Reserve-Normalised Model</strong> gives each post-APU month
+      credit for being operationally quieter (or busier): it scales the baseline Premium count by the
+      same factor that Reserve changed in that month, then computes the remaining unexplained shortfall.
+      This is the more conservative approach — it minimises the portion attributed to APU.
+      The chart follows the same convention as Step 5: expected vs actual Premium trips by month.</p>
     <div id="s6b-wrap" style="margin-bottom:8px"></div>
+    <canvas id="s6b-chart" height="130" style="margin:12px 0 4px;max-width:640px;width:100%"></canvas>
     <p class="note" id="s6b-obs"></p>
 
     <!-- Model selection -->
     <div id="s6-select-wrap"
-         style="margin:16px 0 24px;padding:14px 16px;border-radius:var(--radius);
+         style="margin:16px 0 16px;padding:14px 16px;border-radius:var(--radius);
                 background:#f0fdf4;border-left:4px solid #15803d">
       <div style="font-size:.72rem;font-weight:700;color:#15803d;letter-spacing:.06em;
                   text-transform:uppercase;margin-bottom:6px">&#10003; Selected Model</div>
       <p id="s6-select-text" style="font-size:.82rem;color:var(--gray4);line-height:1.7;margin:0"></p>
+    </div>
+
+    <!-- Trend assessment -->
+    <div id="s6-trend-wrap"
+         style="display:none;margin:0 0 24px;padding:14px 16px;border-radius:var(--radius);
+                background:#eff6ff;border-left:4px solid #1d4ed8">
+      <div id="s6-trend-head" style="font-size:.72rem;font-weight:700;color:#1d4ed8;letter-spacing:.06em;
+                  text-transform:uppercase;margin-bottom:6px">&#128200; Trend Assessment</div>
+      <p id="s6-trend-text" style="font-size:.82rem;color:var(--gray4);line-height:1.7;margin:0"></p>
     </div>
 
     <!-- STEP 7a — Pay hours raw change -->
@@ -153,7 +166,7 @@
     <!-- STEP 7b — Stress adjustment -->
     <h3 class="section-title">Step 8 — Pay Hours: Operational Stress Adjustment</h3>
     <p class="note">Not all of the pay-hours decline is attributable to APU — some reflects
-      April genuinely being a quieter month. The table below applies two scaling methods
+      months that were genuinely quieter. The table below applies two scaling methods
       side by side to isolate the portion of the pay shortfall that <em>cannot</em> be
       explained by lower operational demand. We select the more conservative result.</p>
     <div id="s7b-wrap" style="margin-bottom:8px"></div>

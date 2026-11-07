@@ -420,15 +420,17 @@ function initDaily(D) {
   //
   // Colour families (per spec):
   //   ORANGE  – Reserve:           RF
-  //   GREEN   – Premium:           PM, OG, PR, PH, P7, HP, 7P
+  //   GREEN   – Premium:           PM, OG, PR, PH, P7, HP, 7P, LA, AE
   //   PURPLE  – Aggressive Pickup: AL, AH, AG
   //   RED     – Fatigue:           FT
   //   BLUE    – Open Trips:        everything not in the above sets
   //   GRAY    – explicitly unknown / catch-all fallback
   //
   var RESERVE_SET = new Set(['RF']);
-  var PREMIUM_SET = new Set(['PM','OG','PR','PH','P7','HP','7P']);
+  var PREMIUM_SET = new Set(['PM','OG','PR','PH','P7','HP','7P','LA','AE']);
   var APU_SET     = new Set(['AL','AH','AG']);
+  // APU Premium: Premium paid via Aggressive Pickup. Counted as Premium (label only).
+  var APU_PREMIUM_SET = new Set(['PH','P7','HP','7P','LA','AE']);
   var FATIGUE_SET = new Set(['FT']);
 
   var CODE_DESC = {
@@ -474,6 +476,16 @@ function initDaily(D) {
     'OR': 'Recovery Obligation for OG/PR',
     'SR': 'Original pilot who Shared Trip (remainder of original trip); existing RIG added',
     'DF': 'RO Trip Drop on Footprint (SD on FP). Pay and no credit',
+    // Added 2026-11-06 from Decoding_Guide.pdf (Compass, 10/30/26), ADD entries
+    'LA': 'Lineholder Premium (50%) via APU',
+    'AE': 'Reserve Premium (50%) via APU',
+    'OF': 'RO Open Time Pickup on Footprint (OT on FP). Pay and no credit',
+    'PF': 'RO Sequence Pickup on Footprint (SP on FP). Pay and no credit',
+    'TP': 'RO Trip Trade on Footprint (TT on FP). Pay and no credit',
+    'TF': 'RO Over VMAX Pickup on Footprint (TV on FP). Pay and no credit',
+    'GP': 'Greater of Pick-up with conflict sequence awarded in DOTC – 2023 CBA Section 15.L.4.c.(4) & d.(4). Pay (and credit, as applicable) for the greater of original or awarded sequence',
+    'CO': 'DOTC Conflict',
+    'AF': 'Reassignment / added flying (PBS: Non-Duty Absence). Normally used on HI3 for lineholders only (RA used on HI1) – 2023 CBA Section 15.N',
   };
 
   function codeDesc(code) {
@@ -496,6 +508,7 @@ function initDaily(D) {
   }
   function codeFamily(code) {
     if (RESERVE_SET.has(code))           return 'Reserve';
+    if (APU_PREMIUM_SET.has(code))       return 'APU Premium';
     if (PREMIUM_SET.has(code))           return 'Premium';
     if (APU_SET.has(code))               return 'Aggressive Pickup';
     if (FATIGUE_SET.has(code))           return 'Fatigue';
@@ -1412,7 +1425,7 @@ function initPM(D) {
     return true;
   }
 
-  // Premium code colour palette (7 codes, green family)
+  // Premium code colour palette (9 codes, green family)
   const PM_CODE_COLORS = {
     'PM': { bg: 'rgba(21,128,61,.80)',   border: '#15803d' },
     'OG': { bg: 'rgba(34,197,94,.75)',   border: '#16a34a' },
@@ -1421,8 +1434,10 @@ function initPM(D) {
     'P7': { bg: 'rgba(167,243,208,.80)', border: '#6ee7b7' },
     'HP': { bg: 'rgba(187,247,208,.80)', border: '#86efac' },
     '7P': { bg: 'rgba(220,252,231,.90)', border: '#bbf7d0' },
+    'LA': { bg: 'rgba(13,148,136,.80)',  border: '#0f766e' },
+    'AE': { bg: 'rgba(94,234,212,.80)',  border: '#14b8a6' },
   };
-  const PM_CODE_ORDER = ['PM','OG','PR','PH','P7','HP','7P'];
+  const PM_CODE_ORDER = ['PM','OG','PR','PH','P7','HP','7P','LA','AE'];
 
   function refreshPMAnalysis() {
     const month  = pmMonSel.value, base = pmBasSel.value,
@@ -2421,6 +2436,11 @@ function initInsights(D) {
   var TD = function(v,s){ s=s||''; return '<td style="padding:5px 10px;'+s+'">'+v+'</td>'; };
   var APU_B='<span style="font-size:.62rem;font-weight:700;background:#7c3aed;color:#fff;'
     +'padding:1px 5px;border-radius:3px;margin-left:5px">APU Launch</span>';
+  var PROV_MO=null;
+  try { PROV_MO=MYOT_DATA.insights._meta.provisional_month||null; } catch(e) {}
+  var PROV_B='<span title="Trips can still change for about six weeks after a month ends" '
+    +'style="font-size:.62rem;font-weight:600;background:var(--gray0);color:var(--gray4);'
+    +'border:1px solid var(--gray2);padding:0 5px;border-radius:3px;margin-left:5px">provisional</span>';
   var SEL_B='<span style="font-size:.62rem;font-weight:700;background:#15803d;color:#fff;'
     +'padding:1px 6px;border-radius:3px;margin-left:6px">Selected</span>';
 
@@ -2443,7 +2463,7 @@ function initInsights(D) {
     var html='';
     ins.act1_rows.forEach(function(r,i){
       html+='<tr style="'+rowBg(r,i)+'">'
-        +TD(r.month+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.month===PROV_MO?PROV_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
         +TD(N(r.total))+TD(N(r.rf),'color:#b45309')+TD(N(r.pm),'color:#15803d')
         +TD(N(r.apu),'color:#7c3aed')+TD(N(r.other),'color:var(--gray3)')+'</tr>';
     });
@@ -2472,7 +2492,7 @@ function initInsights(D) {
     var html=''; var kRow=null;
     ins.act2_rows.forEach(function(r,i){
       html+='<tr style="'+rowBg(r,i)+'">'
-        +TD(r.month+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.month===PROV_MO?PROV_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
         +TD(N(r.total))+TD(N(r.pm),'color:#15803d')
         +TD(S(r.pm_chg),'font-family:var(--font-mono);'+clr(r.pm_chg))
         +TD(P(r.pm_chg_pct),clr(r.pm_chg_pct))
@@ -2519,7 +2539,7 @@ function initInsights(D) {
     var html=''; var kRow=null;
     ins.act3_rows.forEach(function(r,i){
       html+='<tr style="'+rowBg(r,i)+'">'
-        +TD(r.month+(r.is_apu?APU_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.month===PROV_MO?PROV_B:''),'text-align:left;font-family:var(--font-mono);font-weight:600')
         +TD(N(r.total))+TD(N(r.rf),'color:#b45309')
         +TD(S(r.rf_chg),'font-family:var(--font-mono);'+clr(r.rf_chg))
         +TD(P(r.rf_chg_pct),clr(r.rf_chg_pct))
@@ -2622,7 +2642,7 @@ function initInsights(D) {
           +'<span style="color:'+COLORS.other+'">▪ Other '+pie.other_pct+'%</span>'+'</div>';
       }
       div.innerHTML='<div style="font-weight:700;font-size:.82rem;color:var(--navy);margin-bottom:6px">'
-        +pie.month+(pie.is_apu?'<span style="font-size:.62rem;font-weight:700;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:3px;margin-left:5px">APU Launch</span>':'')
+        +pie.month+(pie.is_apu?'<span style="font-size:.62rem;font-weight:700;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:3px;margin-left:5px">APU Launch</span>':'')+(pie.month===PROV_MO?PROV_B:'')
         +'</div>'
         +'<canvas id="'+cid+'" width="200" height="200" style="max-width:200px"></canvas>'
         +ann;
@@ -2704,7 +2724,7 @@ function initInsights(D) {
       +TH('Shortfall')+TH('Short %')+'</tr></thead><tbody>';
     rows.forEach(function(r,i){
       html+='<tr style="'+rowBg(r,i)+'">'
-        +TD(r.month+(r.is_apu?APU_B:'')+(r.is_baseline?BASE_B:''),
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.month===PROV_MO?PROV_B:'')+(r.is_baseline?BASE_B:''),
             'text-align:left;font-family:var(--font-mono);font-weight:600')
         +TD(N(r.total),'text-align:right;font-family:var(--font-mono)')
         +TD(N(r.expected),'text-align:right;font-family:var(--font-mono)')
@@ -2742,7 +2762,7 @@ function initInsights(D) {
       +TH('Shortfall')+TH('Short %')+'</tr></thead><tbody>';
     rows.forEach(function(r,i){
       html+='<tr style="'+rowBg(r,i)+'">'
-        +TD(r.month+(r.is_apu?APU_B:'')+(r.is_baseline?BASE_B:''),
+        +TD(r.month+(r.is_apu?APU_B:'')+(r.month===PROV_MO?PROV_B:'')+(r.is_baseline?BASE_B:''),
             'text-align:left;font-family:var(--font-mono);font-weight:600')
         +TD(N(r.rf),'text-align:right;font-family:var(--font-mono);color:#b45309')
         +TD(r.rf_scale.toFixed(4)+'×','text-align:right;font-family:var(--font-mono)')
@@ -2857,44 +2877,33 @@ function initInsights(D) {
       return (neg?'-':'')+hh+':'+(mm<10?'0':'')+mm; };
     var hasCum = (a.post_months&&a.post_months.length>1);
 
-    var card=function(lbl,val,sub,sub2,color){
-      return '<div style="background:#fff;border-radius:var(--radius);padding:14px 16px;'
-        +'border-top:4px solid '+color+';box-shadow:var(--shadow)">'
-        +'<div style="font-size:.7rem;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+lbl+'</div>'
-        +'<div style="font-size:1.5rem;font-weight:700;color:var(--navy);line-height:1.1">'+val+'</div>'
-        +'<div style="font-size:.74rem;color:var(--gray3);margin-top:4px;line-height:1.5">'+sub+'</div>'
-        +(sub2?'<div style="font-size:.74rem;color:var(--gray3);border-top:1px dashed var(--gray1);margin-top:8px;padding-top:6px;line-height:1.5">'+sub2+'</div>':'')
-        +'</div>';
+    // Bottom-line formula: cumulative figures only, each traced to its source.
+    var USD=function(v){ return '$'+Math.round(v).toLocaleString(); };
+    var HRS=function(v){ return (Math.round(v*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); };
+    var span=(a.post_months&&a.post_months.length)
+      ? (a.post_months[0]+(a.post_months.length>1?' to '+a.post_months[a.post_months.length-1]:''))
+      : a.post_mo;
+    var row=function(op,label,val,src,strong){
+      return '<tr style="'+(strong?'border-top:2px solid var(--navy);':'')+'">'
+        +'<td style="padding:6px 10px;width:1.5em;font-weight:700;color:var(--gray3);font-size:1.05rem">'+op+'</td>'
+        +'<td style="padding:6px 10px;'+(strong?'font-weight:700;color:var(--navy)':'color:var(--gray4)')+'">'+label+'</td>'
+        +'<td style="padding:6px 10px;text-align:right;font-family:var(--font-mono);white-space:nowrap;'
+          +(strong?'font-weight:700;color:var(--navy)':'font-weight:600')+'">'+val+'</td>'
+        +'<td style="padding:6px 10px;font-size:.74rem;color:var(--gray3)">'+(src||'')+'</td>'
+        +'</tr>';
     };
-
     wrap.innerHTML=
       '<div style="font-size:.7rem;font-weight:700;color:var(--gray3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">'
-        +(hasCum
-          ?'Latest month ('+a.post_mo+') &nbsp;/&nbsp; <span style="color:var(--navy)">Cumulative since APU launch</span>'
-          :'Latest month ('+a.post_mo+')')
-      +'</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:24px">'
-        +card('APU Pay Hours Attributed',
-              HR2(a.apu_hrs_attributed),
-              'Latest month'+((a.apu_pay_hrs>a.pay_short_cons)?' (capped at shortfall)':''),
-              hasCum?'Cumulative: '+HR2(a.cum_apu_hrs):null,
-              '#7c3aed')
-        +card('Incremental Premium Rate',
-              '$'+a.incr_rate+'/hr',
-              '50% uplift on $250/hr base rate',
-              null,
-              '#b45309')
-        +card('Lost Premium Compensation',
-              '$'+a.lost_comp.toLocaleString(),
-              'Latest month: '+HR2(a.apu_hrs_attributed)+' hrs × $'+a.incr_rate,
-              hasCum?'Cumulative: $'+a.cum_lost_comp.toLocaleString():null,
-              '#b91c1c')
-        +card('Lost Union Revenue',
-              '$'+a.union_loss.toLocaleString(),
-              'Latest month: '+a.union_rate_pct.toFixed(1)+'% of $'+a.lost_comp.toLocaleString(),
-              hasCum?'Cumulative: $'+a.cum_union_loss.toLocaleString():null,
-              '#1a3a5c')
-      +'</div>';
+        +'Cumulative since APU launched ('+span+')</div>'
+      +'<table style="border-collapse:collapse;font-size:.88rem;max-width:760px;width:100%;margin-bottom:8px">'
+        +row('','Cumulative APU pay hours', HRS(a.cum_apu_hrs)+' hrs',
+             'APU pay hours each month, capped at that month’s pay shortfall (Step 8)')
+        +row('×','Incremental Premium rate', '$'+Number(a.incr_rate).toFixed(2)+'/hr',
+             (a.premium_uplift_pct||50)+'% of the $'+Number(a.base_rate||307.17).toFixed(2)+'/hr average pilot rate')
+        +row('=','Cumulative lost Premium compensation', USD(a.cum_lost_comp), '', true)
+        +row('×','Union share', a.union_rate_pct.toFixed(1)+'%', '')
+        +row('=','Cumulative lost union revenue', USD(a.cum_union_loss), '', true)
+      +'</table>';
 
     // Bottom Line
     var btm=el('ins-bottom-text');

@@ -21,7 +21,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-11-06</strong><br>
-        Page generated: 2026-11-06 06:15 UTC
+        Page generated: 2026-11-07 00:44 UTC
       </div>
     </div>
     <nav><a href="index.html">📈 OT Activity</a>
@@ -291,7 +291,13 @@
   Open Trips Flight Data Analysis &bull;
   <a href="index.html">Activity</a>
   &bull; If you have input, recommendations, or questions please email: <a href="mailto:kevin321do@proton.me">kevin321do@proton.me</a>
+  <br><span style="font-size:.8em;opacity:.8">Once loaded, every page of this site stays available offline in this browser.</span>
 </footer>
+<script>
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  navigator.serviceWorker.register('sw.js').catch(function(e) { console.warn('Offline support unavailable:', e); });
+}
+</script>
 <!-- Load data FIRST, then charting library, then our code, then init -->
 <script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

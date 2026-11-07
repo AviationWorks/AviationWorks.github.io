@@ -21,7 +21,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-11-06</strong><br>
-        Page generated: 2026-11-06 06:15 UTC
+        Page generated: 2026-11-07 00:44 UTC
       </div>
     </div>
     <nav><a href="index.html" class="active">📈 OT Activity</a>
@@ -130,29 +130,29 @@
     <tbody><tr>
           <td>320_CA</td>
           <td>257,419</td>
-          <td>29,176</td>
-          <td>4,419</td>
+          <td>28,060</td>
+          <td>4,734</td>
           <td>2026-04-25</td>
           <td>2026-11-06</td>
         </tr><tr>
           <td>320_FO</td>
           <td>265,399</td>
-          <td>31,523</td>
-          <td>3,532</td>
+          <td>30,578</td>
+          <td>3,770</td>
           <td>2026-04-25</td>
           <td>2026-11-06</td>
         </tr><tr>
           <td>737_CA</td>
           <td>228,502</td>
-          <td>26,106</td>
-          <td>6,190</td>
+          <td>25,030</td>
+          <td>6,584</td>
           <td>2026-04-25</td>
           <td>2026-11-06</td>
         </tr><tr>
           <td>737_FO</td>
           <td>245,038</td>
-          <td>27,794</td>
-          <td>4,017</td>
+          <td>27,063</td>
+          <td>4,276</td>
           <td>2026-04-25</td>
           <td>2026-11-06</td>
         </tr></tbody>
@@ -174,7 +174,13 @@
   Open Trips Flight Data Analysis &bull;
   <a href="index.html">Activity</a>
   &bull; If you have input, recommendations, or questions please email: <a href="mailto:kevin321do@proton.me">kevin321do@proton.me</a>
+  <br><span style="font-size:.8em;opacity:.8">Once loaded, every page of this site stays available offline in this browser.</span>
 </footer>
+<script>
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  navigator.serviceWorker.register('sw.js').catch(function(e) { console.warn('Offline support unavailable:', e); });
+}
+</script>
 <!-- Load data FIRST, then charting library, then our code, then init -->
 <script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

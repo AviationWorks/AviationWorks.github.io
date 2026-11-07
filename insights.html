@@ -21,7 +21,7 @@
       </div>
       <div class="header-meta">
         Last scrape: <strong>2026-11-06</strong><br>
-        Page generated: 2026-11-06 06:15 UTC
+        Page generated: 2026-11-07 00:44 UTC
       </div>
     </div>
     <nav><a href="index.html">📈 OT Activity</a>
@@ -174,12 +174,10 @@
 
     <!-- STEP 8 — Financial impact -->
     <h3 class="section-title">Step 9 — Financial Impact Estimate</h3>
-    <p class="note">Having established (Step 6) that APU trips fall within the conservative
-      Premium shortfall, we attribute the APU pay hours directly to displaced Premium.
-      Premium pay is calculated at 50% above the base hourly rate of
-      <strong>$250/hr</strong>, making the incremental value
-      <strong>$125 per hour</strong> above base.
-      APU hours are capped at the stress-adjusted pay shortfall (Step 8) if they exceed it.</p>
+    <p class="note">APU pay hours that fall within the Premium pay shortfall (Step 8) are
+      treated as displaced Premium and valued at the incremental Premium rate: 50% above the
+      pilot group's average hourly rate of $307.17 (14,735 Captains and First Officers;
+      pay year = min(years + 1, 12); PD division excluded). A month with no shortfall contributes nothing.</p>
     <div id="s8-wrap" style="margin-bottom:24px"></div>
 
     <!-- SO WHAT bottom line -->
@@ -205,7 +203,13 @@
   Open Trips Flight Data Analysis &bull;
   <a href="index.html">Activity</a>
   &bull; If you have input, recommendations, or questions please email: <a href="mailto:kevin321do@proton.me">kevin321do@proton.me</a>
+  <br><span style="font-size:.8em;opacity:.8">Once loaded, every page of this site stays available offline in this browser.</span>
 </footer>
+<script>
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  navigator.serviceWorker.register('sw.js').catch(function(e) { console.warn('Offline support unavailable:', e); });
+}
+</script>
 <!-- Load data FIRST, then charting library, then our code, then init -->
 <script src="data/site_data.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
